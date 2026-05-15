@@ -10,11 +10,14 @@ sys.path.insert(0, project_root)
 from driver import run_simulation
 from logic import CONFIG
 
-OUTPUT_DIR = "test_output"
+# Centralized screenshot output directory
+OUTPUT_DIR = os.path.join(project_root, "screenshots")
+
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_output_dir():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 
 class DragTestState:  # Renamed to avoid pytest collection warning
     def __init__(self):

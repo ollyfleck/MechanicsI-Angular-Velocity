@@ -9,6 +9,10 @@ sys.path.insert(0, project_root)
 import pygame  # Import inside to be sure it's in the module scope
 from driver import run_simulation
 
+# Centralized screenshot output directory
+SCREENSHOTS_DIR = os.path.join(project_root, "screenshots")
+os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
+
 class DragEventInjector:
     def __init__(self):
         # We will create events on the fly to avoid any scope issues with pre-created objects
@@ -41,9 +45,10 @@ def test_drag_interaction():
         # Capture screenshot at start and after 1 second (approx)
         if len(screenshots) == 0 or (elapsed > 1.0 and len(screenshots) < 2):
             filename = f"test_screenshot_{len(screenshots)}.png"
-            pygame.image.save(surface, filename)
-            screenshots.append(filename)
-            print(f"Captured screenshot: {filename}")
+            filepath = os.path.join(SCREENSHOTS_DIR, filename)
+            pygame.image.save(surface, filepath)
+            screenshots.append(filepath)
+            print(f"Captured screenshot: {filepath}")
 
     injector = DragEventInjector()
     
