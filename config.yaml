@@ -1,0 +1,140 @@
+screen:
+  width: 1280
+  height: 1280
+  
+cube_size: 3.5
+
+rotation_angles:
+  x: 25
+  y: -20
+  z: 0
+
+angular_velocity:
+  damping: 1.0  # No friction - momentum is preserved indefinitely until user applies new force
+  max_speed: 120.0
+  
+colors:
+  bg: [10, 15, 30]
+  cube_edges: [180, 200, 220]
+  edge_colors:
+    - [255, 100, 100]
+    - [100, 255, 100]
+    - [100, 100, 255]
+    - [255, 255, 100]
+    - [255, 100, 255]
+    - [100, 255, 255]
+    - [255, 150, 50]
+    - [150, 50, 255]
+    - [255, 200, 200]
+    - [200, 255, 200]
+    - [200, 200, 255]
+    - [255, 255, 255]
+  omega: [255, 80, 80]
+  velocity: [140, 190, 255]
+  axis: [120, 160, 200]
+  highlight: [255, 220, 180]
+  text_main: [230, 240, 255]
+  text_sub: [180, 190, 210]
+
+physics:
+  frame_rate: 60
+  start_key: ' '
+
+# Projection settings
+projection:
+  # Perspective camera settings
+  camera_distance: 15.0  # Distance from camera to origin (Z-axis)
+  fov: 500.0             # Field of view scale factor
+  # Legacy (kept for backwards compatibility)
+  scale_x: 50.0
+  scale_y: -50.0
+
+# Edge colors for cube (RGB values)
+edge_colors:
+  - [255, 100, 100]   # Red
+  - [100, 255, 100]   # Green
+  - [100, 100, 255]   # Blue
+  - [255, 255, 100]   # Yellow
+  - [255, 100, 255]   # Magenta
+  - [100, 255, 255]   # Cyan
+  - [255, 150, 50]    # Orange
+  - [150, 50, 255]    # Purple
+  - [255, 200, 200]   # Pink
+  - [200, 255, 200]   # Light Green
+  - [200, 200, 255]   # Light Blue
+  - [255, 255, 255]   # White
+
+# Synthetic test mode configuration - for unit testing without pygame
+synthetic_test:
+  enabled: false
+  drag_delta_omega_x: 0.1
+  drag_delta_omega_y: 0.08
+
+# Increased drag sensitivity for mouse interactions (updated to match code)
+mouse_drag_sensitivity:
+  omega_x: 0.5
+  omega_y: 0.4
+  omega_z: 0.3
+
+# Vector scale factors for visualization
+vector_scales:
+  tangential: 0.08
+  tangential_max: 8
+  normal_vertex: 6
+  omega_arrow: 10
+
+# Vector rendering mode settings
+# Options: "simple" (2D line + arrowhead) or "enhanced" (3D cylinder + cone)
+vector_rendering:
+  omega: "enhanced"        # Omega vector rendering mode
+  tangential: "enhanced"   # Tangential velocity vector rendering mode
+  centripetal: "simple"    # Centripetal acceleration vector rendering mode
+
+# 3D vector shading settings
+vector_shading:
+  enabled: true            # Enable simple Phong-like shading on 3D vectors
+  light_direction: [0.5, 0.8, 0.3]  # Light direction (normalized internally)
+  ambient: 0.35            # Ambient light factor (0.0 - 1.0)
+  diffuse_max: 0.65        # Maximum diffuse light factor (0.0 - 1.0)
+
+# Face normals display toggle
+show_face_normals: true
+  
+# WASDEQ key-based rotation sensitivity (flight-simulator style)
+keys_omega_sensitivity:
+  omega_x: 40.0    # W/S keys → X-axis rotation speed
+  omega_y: 40.0    # A/D keys → Y-axis rotation speed
+  omega_z: 30.0    # E/Q keys → Z-axis rotation speed
+
+# 3D vector geometry configuration
+# Each vector type can have its own geometry settings for rendering as 3D objects
+vector_geometry:
+  # Omega (angular velocity) vector settings
+  omega:
+    type: "cylinder_cone"  # cylinder shaft + cone arrowhead
+    shaft_radius: 1        # Radius of the cylindrical shaft
+    shaft_segments: 8        # Number of segments for shaft cylinder (more = rounder)
+    arrowhead_length_ratio: 0.2  # Arrowhead length as fraction of total arrow length
+    arrowhead_radius_ratio: 1.2  # Arrowhead base radius as fraction of shaft radius
+    tip_length: 12.0         # Absolute arrowhead length in pixels (fallback for simple mode)
+    tip_radius_ratio: 0.4    # Arrowhead base radius as fraction of arrow length
+    
+  # Tangential velocity vector settings
+  tangential:
+    type: "cylinder_cone"
+    shaft_radius: 1
+    shaft_segments: 6
+    arrowhead_length_ratio: 0.25
+    arrowhead_radius_ratio: 0.35
+    tip_length: 10.0
+    tip_radius_ratio: 0.35
+    
+  # Centripetal acceleration vector settings
+  centripetal:
+    type: "cylinder_cone"
+    shaft_radius: 1
+    shaft_segments: 6
+    arrowhead_length_ratio: 0.3
+    arrowhead_radius_ratio: 0.3
+    tip_length: 8.0
+    tip_radius_ratio: 0.3
