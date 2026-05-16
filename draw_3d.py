@@ -460,6 +460,9 @@ def draw_3d_vector_omega_on_screen(screen, center_screen, direction_screen, tota
             
             shaft_faces.append(((int(x1s), int(y1s)), (int(x2s), int(y2s)), (int(x2e), int(y2e)), (int(x1e), int(y1e))))
         
+        # Draw a red circle at the base of the shaft (before shaft faces so it appears underneath)
+        pygame.draw.circle(screen, (255, 0, 0), (int(center_screen[0]), int(center_screen[1])), int(shaft_radius))
+        
         for face in shaft_faces:
             pygame.draw.polygon(screen, color, face, 0)  # filled
         

@@ -345,6 +345,11 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_radius, shaft_segments, screen, omega_color, depth_offset=-0.01)
                 for face, depth, normal in cone_faces:
                     drawables.append((depth, 'polygon', face, omega_color, normal))
+                
+                # Draw a red circle at the base of the omega vector's shaft
+                p_center_circle = project_3d_to_screen(*center_3d)
+                if p_center_circle is not None:
+                    drawables.append((center_3d[2] + 0.1, 'circle', (p_center_circle, shaft_radius), (255, 0, 0)))
             # Also skip simple mode if display length is too small for arrowhead
             elif omega_mode == 'simple' and omega_display_length >= tip_length_omega:
                 omega_unit = (omega_x / total_omega, omega_y / total_omega, omega_z / total_omega)
@@ -367,6 +372,10 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 if p_center is not None and p_tip is not None:
                     margin = 50
                     p_tip_clamped = (max(margin, min(SCREEN_W - margin, p_tip[0])), max(margin, min(SCREEN_H - margin, p_tip[1])))
+                    
+                    # Draw a red circle at the base of the omega vector's shaft
+                    pygame.draw.circle(screen, (255, 0, 0), (int(p_center[0]), int(p_center[1])), int(shaft_radius))
+                    
                     pygame.draw.line(screen, omega_color, p_center, p_tip_clamped, 3)
 
                     dx2 = p_tip_clamped[0] - p_center[0]
@@ -457,20 +466,27 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         omega_drawables = [d for d in drawables]
         velocity_drawables = vector_drawables
 
-        # Combine omega drawables and edge faces for unified depth sorting
+        # Combine omega drawables, edge faces, and vertex data for unified depth sorting
         # Create edge drawable entries: (depth, 'line', (p1, p2), color)
         edge_drawables = []
         for (avg_z, p1, p2) in edge_faces:
             edge_drawables.append((avg_z, 'line', (p1, p2), (255, 255, 255)))
 
+        # Create vertex drawable entries: (depth, 'vertex', screen_pos, color)
+        # Each vertex gets its own depth for proper occlusion
+        vertex_drawables = []
+        for v in rotated_verts:
+            p = project_3d_to_screen(*v)
+            if p is not None:
+                vertex_drawables.append((v[2], 'vertex', p, (255, 50, 50)))
+
         # Combine all drawables and sort by depth (back to front)
-        all_drawables = omega_drawables + edge_drawables + velocity_drawables
-        all_drawables.sort(key=lambda d: d[0])
+        # In this coord system: higher Z = farther from camera, lower Z = closer to camera
+        # So we sort reverse=True: highest Z (farthest) drawn first/bottom, lowest Z (closest) drawn last/top
+        all_drawables = omega_drawables + edge_drawables + velocity_drawables + vertex_drawables
+        all_drawables.sort(key=lambda d: d[0], reverse=True)
 
-        # Draw vertices first (behind everything else)
-        draw_cube_vertices(rotated_verts, screen)
-
-        # Draw all depth-sorted polygons and lines with shading
+        # Draw all depth-sorted polygons, lines, and vertices with shading
         for drawable in all_drawables:
             depth = drawable[0]
             draw_type = drawable[1]
@@ -486,6 +502,12 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
             elif draw_type == 'line':
                 p1, p2 = args
                 pygame.draw.line(screen, color, p1, p2, 3)
+            elif draw_type == 'vertex':
+                pos = args
+                pygame.draw.circle(screen, color, pos, 6)
+            elif draw_type == 'circle':
+                (cx, cy), radius = args
+                pygame.draw.circle(screen, color, (int(cx), int(cy)), int(radius))
 
         # Draw face normals
         if show_face_normals:
