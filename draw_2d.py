@@ -132,6 +132,8 @@ def draw_velocity_vectors_at_vertices(verts, total_omega_mag, screen, omega_x=0,
     _, tang_cfg, cent_cfg, _ = VECTOR_CONFIGS
     
     max_speed = CONFIG['angular_velocity']['max_speed']
+    speed_at_max_omega = max_speed * CUBE_SIZE          # reference for tangential velocity (linear in omega)
+    ref_a_mag = max_speed * max_speed * CUBE_SIZE      # reference for centripetal acceleration (quadratic in omega)
     
     # Use full omega vector for proper cross product
     omega_vec = np.array([omega_x, omega_y, omega_z])
@@ -182,9 +184,9 @@ def draw_velocity_vectors_at_vertices(verts, total_omega_mag, screen, omega_x=0,
             length_at_max = cent_cfg.get('length_at_max', 8)
             min_len = cent_cfg.get('min_length', 0)
             
-            # Scale centripetal vector linearly from min to max based on normalized speed
-            # Use same reference as tangential (speed_at_max_omega) for consistent scaling
-            cent_speed_ratio = a_mag / speed_at_max_omega if speed_at_max_omega > 0 else 0
+            # Scale centripetal vector linearly from min to max based on normalized omega
+            # Use quadratic reference (max_speed^2 * CUBE_SIZE) so it scales linearly with display
+            cent_speed_ratio = a_mag / ref_a_mag if ref_a_mag > 0 else 0
             clamped_ratio = min(max(cent_speed_ratio, 0.0), 1.0)
             display_length = min_len + clamped_ratio * (length_at_max - min_len)
             
@@ -251,9 +253,9 @@ def draw_formula(screen):
 
 def draw_face_normals(verts, screen):
     """Draw normal vectors from the center of each cube face."""
-    # Get face normal length from config
-    vec_scales = CONFIG.get('vector_scales', {})
-    normal_face_len = vec_scales.get('normal_face', 25)
+    # Get face normal length from vector_visualization config
+    _, _, _, face_cfg = VECTOR_CONFIGS
+    normal_face_len = face_cfg.get('fixed_length', 3)
     
     normal_colors = {
         'front': (100, 255, 100),   # Green - +Z

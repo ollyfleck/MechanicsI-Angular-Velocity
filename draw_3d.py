@@ -500,9 +500,10 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
     cent_length_at_max = cent_cfg.get('length_at_max', 15)
     cent_min_length = cent_cfg.get('min_length', 0)
     
-    # Compute reference speed: at omega = max_speed, with r = CUBE_SIZE
+    # Compute reference values: at omega = max_speed, with r = CUBE_SIZE
     max_speed = CONFIG['angular_velocity']['max_speed']
-    speed_at_max_omega = max_speed * CUBE_SIZE
+    speed_at_max_omega = max_speed * CUBE_SIZE          # reference for tangential velocity (linear in omega)
+    ref_a_mag = max_speed * max_speed * CUBE_SIZE      # reference for centripetal acceleration (quadratic in omega)
     
     # Use full omega vector for proper cross product
     omega_vec = np.array([omega_x, omega_y, omega_z])
@@ -609,9 +610,9 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
             centripetal_a = cross_product(omega_vec, tangential_v)
             a_mag = math.sqrt(sum(c**2 for c in centripetal_a))
             
-            # Scale centripetal vector linearly from min to max based on normalized speed
-            # Use same reference as tangential (speed_at_max_omega) for consistent scaling
-            cent_speed_ratio = a_mag / speed_at_max_omega if speed_at_max_omega > 0 else 0
+            # Scale centripetal vector linearly from min to max based on normalized omega
+            # Use quadratic reference (max_speed^2 * CUBE_SIZE) so it scales linearly with display
+            cent_speed_ratio = a_mag / ref_a_mag if ref_a_mag > 0 else 0
             clamped_ratio = min(max(cent_speed_ratio, 0.0), 1.0)
             display_length = cent_min_length + clamped_ratio * (cent_length_at_max - cent_min_length)
             

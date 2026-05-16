@@ -151,8 +151,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                     motion_dx = event.pos[0] - last_mouse_pos[0]
                     motion_dy = -(event.pos[1] - last_mouse_pos[1])
                     mouse_sens = CONFIG.get('mouse_drag_sensitivity', {})
-                    imp_x = motion_dy * mouse_sens.get('omega_x', 0.5)   # vertical → X-axis (flip)
-                    imp_y = motion_dx * mouse_sens.get('omega_y', 0.4)   # horizontal → Y-axis
+                    imp_x = -motion_dy * mouse_sens.get('omega_x', 0.5)   # vertical → X-axis (negate)
+                    imp_y = -motion_dx * mouse_sens.get('omega_y', 0.4)   # horizontal → Y-axis (negate)
                     omega_x, omega_y, omega_z = apply_drag_impulse(omega_x, omega_y, omega_z, imp_x, imp_y)
                     last_mouse_pos = event.pos
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
@@ -411,10 +411,6 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 edge_faces.append((avg_z, p1_screen, p2_screen))
         edge_faces.sort(key=lambda e: e[0])  # back to front
 
-        # Draw edges first (behind everything)
-        for (avg_z, p1, p2) in edge_faces:
-            pygame.draw.line(screen, (255, 255, 255), p1, p2, 3)
-
         world_verts = rotated_verts  # quaternion-based rotation gives correct world-space vertices
 
         # Collect vector drawables with depth
@@ -456,14 +452,25 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                     )
                     vector_drawables.extend(cent_drawables)
 
+        # Separate omega vector drawables from velocity vector drawables
+        # Omega vector is drawn behind the cube (as a rotation axis indicator)
+        omega_drawables = [d for d in drawables]
+        velocity_drawables = vector_drawables
+
+        # Combine omega drawables and edge faces for unified depth sorting
+        # Create edge drawable entries: (depth, 'line', (p1, p2), color)
+        edge_drawables = []
+        for (avg_z, p1, p2) in edge_faces:
+            edge_drawables.append((avg_z, 'line', (p1, p2), (255, 255, 255)))
+
         # Combine all drawables and sort by depth (back to front)
-        all_drawables = drawables + vector_drawables
+        all_drawables = omega_drawables + edge_drawables + velocity_drawables
         all_drawables.sort(key=lambda d: d[0])
 
-        # Draw vertices (before vectors, after cube edges)
+        # Draw vertices first (behind everything else)
         draw_cube_vertices(rotated_verts, screen)
 
-        # Draw all depth-sorted polygons with shading
+        # Draw all depth-sorted polygons and lines with shading
         for drawable in all_drawables:
             depth = drawable[0]
             draw_type = drawable[1]
@@ -476,6 +483,9 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 else:
                     shaded_color = color
                 pygame.draw.polygon(screen, shaded_color, args, 0)  # filled
+            elif draw_type == 'line':
+                p1, p2 = args
+                pygame.draw.line(screen, color, p1, p2, 3)
 
         # Draw face normals
         if show_face_normals:

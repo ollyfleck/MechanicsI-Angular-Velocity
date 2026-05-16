@@ -88,7 +88,7 @@ vector_visualization:
 
   centripetal_acceleration:
     enabled: true
-    length_at_max: 8       # Displayed when |ω| = max_speed (a = ω × v, quadratic in physics)
+    length_at_max: 6       # Displayed when |ω| = max_speed (a = ω × v, quadratic in physics)
     min_length: 1          # Must be > tip_length for visible shaft at rest
 
   face_normals:
@@ -112,13 +112,13 @@ vector_geometry:
     tip_length: 2.0           # Fixed arrowhead length (world units)
     arrowhead_radius_ratio: 5 # Base radius / shaft radius ratio
 
-  tangential_velocity:
+  tangential:
     shaft_radius: 1
     shaft_segments: 8
     tip_length: 1.5           # Fixed arrowhead length (world units)
     arrowhead_radius_ratio: 5
 
-  centripetal_acceleration:
+  centripetal:
     shaft_radius: 1
     shaft_segments: 8
     tip_length: 1.5           # Fixed arrowhead length (world units)
