@@ -58,7 +58,7 @@ FRAME_RATE = getattr(driver, 'FRAME_RATE', 60)
 
 def test_damping_decreases_velocity():
     """Verify damping reduces angular velocity over time."""
-    from logic import apply_drag_impulse_damping
+    from physics import apply_drag_impulse_damping
     
     initial_omega = (0.5, 0.3, 0.2)
     omega_x, omega_y, omega_z = apply_drag_impulse_damping(*initial_omega)
@@ -71,7 +71,7 @@ def test_damping_decreases_velocity():
 
 def test_clamp_limits_velocity():
     """Verify clamping prevents excessive angular velocity."""
-    from logic import clamp_angular_velocity
+    from physics import clamp_angular_velocity
     
     high_omega = (10.0, 5.0, 2.0)  # Way beyond max_speed
     
@@ -83,7 +83,7 @@ def test_clamp_limits_velocity():
 
 def test_drag_impulse_adds_momentum():
     """Verify drag input adds torque to angular velocity."""
-    from logic import apply_drag_impulse
+    from physics import apply_drag_impulse
     
     initial_omega = (0.0, 0.0, 0.0)
     drag_dx = 100
@@ -96,7 +96,7 @@ def test_drag_impulse_adds_momentum():
 
 def test_rotation_preserves_distance_from_origin():
     """Verify rotation maintains distance of points from origin."""
-    from logic import apply_3axis_rotation_matrix
+    from math_utils import apply_3axis_rotation_matrix
     
     point = (3.0, 4.0, 0.0)
     
@@ -110,7 +110,8 @@ def test_rotation_preserves_distance_from_origin():
 
 def test_rotation_matrices_preserve_cube_shape():
     """Verify 3-axis rotation maintains cube geometry."""
-    from logic import apply_3axis_rotation_matrix, CUBE_VERTS
+    from math_utils import apply_3axis_rotation_matrix
+    from geometry import CUBE_VERTS
     
     initial_mags = []
     final_mags = []
@@ -126,7 +127,7 @@ def test_rotation_matrices_preserve_cube_shape():
 
 def test_x_rotation_matrix_structure():
     """Verify rotation around X axis has correct matrix structure."""
-    from logic import rotate_x
+    from math_utils import rotate_x
     
     point = (3.0, 4.0, 5.0)
     rotated = rotate_x(point, math.degrees(0.5))
@@ -137,7 +138,7 @@ def test_x_rotation_matrix_structure():
 
 def test_y_rotation_matrix_structure():
     """Verify rotation around Y axis has correct matrix structure."""
-    from logic import rotate_y
+    from math_utils import rotate_y
     
     point = (3.0, 4.0, 5.0)
     rotated = rotate_y(point, math.degrees(0.5))
@@ -148,7 +149,7 @@ def test_y_rotation_matrix_structure():
 
 def test_z_rotation_matrix_structure():
     """Verify rotation around Z axis has correct matrix structure."""
-    from logic import rotate_z
+    from math_utils import rotate_z
     
     point = (3.0, 4.0, 5.0)
     rotated = rotate_z(point, math.degrees(0.5))
@@ -159,7 +160,7 @@ def test_z_rotation_matrix_structure():
 
 def test_identity_rotation_returns_same_point():
     """Verify zero rotation returns the original point."""
-    from logic import apply_3axis_rotation_matrix
+    from math_utils import apply_3axis_rotation_matrix
     
     point = (1.0, 2.0, 3.0)
     rotated = apply_3axis_rotation_matrix(point, 0, 0, 0)
@@ -171,7 +172,7 @@ def test_identity_rotation_returns_same_point():
 
 def test_90_degree_x_rotation():
     """Test 90 degree rotation around X axis."""
-    from logic import rotate_x
+    from math_utils import rotate_x
     
     point = (0, 1, 0)
     rotated = rotate_x(point, 90.0)
@@ -184,7 +185,7 @@ def test_90_degree_x_rotation():
 
 def test_90_degree_y_rotation():
     """Test 90 degree rotation around Y axis."""
-    from logic import rotate_y
+    from math_utils import rotate_y
     
     point = (1, 0, 0)
     rotated = rotate_y(point, 90.0)
@@ -196,7 +197,7 @@ def test_90_degree_y_rotation():
 
 def test_90_degree_z_rotation():
     """Test 90 degree rotation around Z axis."""
-    from logic import rotate_z
+    from math_utils import rotate_z
     
     point = (1, 0, 0)
     rotated = rotate_z(point, 90.0)
@@ -208,7 +209,8 @@ def test_90_degree_z_rotation():
 
 def test_project_3d_to_screen():
     """Verify projection to screen coordinates works correctly."""
-    from logic import project_3d_to_screen, SCREEN_W, SCREEN_H
+    from projection import project_3d_to_screen
+    from config import SCREEN_W, SCREEN_H
     
     # Test origin projects to center (FOV and camera_distance from config)
     projected = project_3d_to_screen(0, 0, 5)
@@ -242,17 +244,19 @@ def test_config_loads_successfully():
 
 
 def test_logic_module_has_required_functions():
-    """Verify logic module has required functions."""
-    from logic import (
+    """Verify modules have required functions."""
+    from physics import (
         apply_drag_impulse_damping,
         clamp_angular_velocity,
         apply_drag_impulse,
+    )
+    from math_utils import (
         apply_3axis_rotation_matrix,
         rotate_x,
         rotate_y,
         rotate_z,
-        CUBE_VERTS,
     )
+    from geometry import CUBE_VERTS
     
     assert callable(apply_drag_impulse_damping)
     assert callable(clamp_angular_velocity)
@@ -265,7 +269,7 @@ def test_logic_module_has_required_functions():
 
 def test_logic_module_has_cube_verts():
     """Verify CUBE_VERTS is defined."""
-    from logic import CUBE_VERTS
+    from geometry import CUBE_VERTS
     import numpy as np
     
     # CUBE_VERTS is a numpy array

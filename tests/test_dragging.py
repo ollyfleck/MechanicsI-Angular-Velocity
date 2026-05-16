@@ -8,7 +8,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from driver import run_simulation
-from logic import CONFIG
+from config import CONFIG
 
 # Centralized screenshot output directory
 OUTPUT_DIR = os.path.join(project_root, "screenshots")

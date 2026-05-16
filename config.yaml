@@ -1,55 +1,47 @@
 screen:
-  width: 1280
-  height: 1280
-  
-cube_size: 3.5
+  width: 1000
+  height: 1000
+
+cube_size: 4
 
 rotation_angles:
-  x: 25
-  y: -20
+  x: 0
+  y: 0
   z: 0
 
+# ==================== PHYSICS CONFIGURATION ====================
+physics:
+  frame_rate: 60
+  start_key: ' '
+  fixed_physics_dt: 0.008333333  # Fixed timestep for physics (1/120s) - stable integration
+
 angular_velocity:
-  damping: 1.0  # No friction - momentum is preserved indefinitely until user applies new force
-  max_speed: 120.0
-  
+  damping: 1.0                  # No friction - momentum is preserved indefinitely until user applies new force
+  max_speed: 180.0              # Maximum angular velocity magnitude (rad/s)
+
+# ==================== VISUAL ROTATION CONFIGURATION ====================
+visual_rotation:
+  enabled: true                 # Enable visual rotation scaling system
+  multiplier: 0.05              # Direct speed multiplier (0.1=very slow, 2.0=2x fast, etc.)
+  max_visual_omega_scale: 3.0   # At high omega, scale down to prevent blur (higher = slower)
+
+# ==================== PROJECTION CONFIGURATION ====================
+projection:
+  camera_distance: 25           # Distance from camera to origin (Z-axis)
+  fov: 800                      # Field of view scale factor
+
+# ==================== COLOR CONFIGURATION ====================
 colors:
   bg: [10, 15, 30]
   cube_edges: [180, 200, 220]
-  edge_colors:
-    - [255, 100, 100]
-    - [100, 255, 100]
-    - [100, 100, 255]
-    - [255, 255, 100]
-    - [255, 100, 255]
-    - [100, 255, 255]
-    - [255, 150, 50]
-    - [150, 50, 255]
-    - [255, 200, 200]
-    - [200, 255, 200]
-    - [200, 200, 255]
-    - [255, 255, 255]
-  omega: [255, 80, 80]
+  omega: [255, 0, 0]
   velocity: [140, 190, 255]
   axis: [120, 160, 200]
   highlight: [255, 220, 180]
   text_main: [230, 240, 255]
   text_sub: [180, 190, 210]
 
-physics:
-  frame_rate: 60
-  start_key: ' '
-
-# Projection settings
-projection:
-  # Perspective camera settings
-  camera_distance: 15.0  # Distance from camera to origin (Z-axis)
-  fov: 500.0             # Field of view scale factor
-  # Legacy (kept for backwards compatibility)
-  scale_x: 50.0
-  scale_y: -50.0
-
-# Edge colors for cube (RGB values)
+# Edge colors for cube wireframe (RGB values)
 edge_colors:
   - [255, 100, 100]   # Red
   - [100, 255, 100]   # Green
@@ -64,77 +56,86 @@ edge_colors:
   - [200, 200, 255]   # Light Blue
   - [255, 255, 255]   # White
 
-# Synthetic test mode configuration - for unit testing without pygame
+# ==================== MOUSE INPUT CONFIGURATION ====================
+mouse_drag_sensitivity:
+  omega_x: 0.5    # Vertical drag → X-axis rotation sensitivity
+  omega_y: 0.4    # Horizontal drag → Y-axis rotation sensitivity
+  omega_z: 0.3    # Combined drag → Z-axis rotation sensitivity
+
+# WASDEQ key-based rotation sensitivity (flight-simulator style)
+keys_omega_sensitivity:
+  omega_x: 40.0   # W/S keys → X-axis rotation speed
+  omega_y: 40.0   # A/D keys → Y-axis rotation speed
+  omega_z: 30.0   # E/Q keys → Z-axis rotation speed
+
+# ==================== VECTOR VISUALIZATION CONFIGURATION ====================
+# Each vector type has its own section with length control and geometry settings.
+# - length_at_max / max_length: The target display length when the associated magnitude
+#   equals max_speed. This is NOT a cap; it's the length to reach at full speed.
+# - min_length: Minimum visible length (must exceed tip_length for a visible shaft).
+
+vector_visualization:
+  omega:
+    enabled: true
+    length_at_max: 16      # Displayed when |ω| = max_speed
+    min_length: 1          # Must be > tip_length for visible shaft at rest
+
+  tangential_velocity:
+    enabled: true
+    scale_factor: 1     # Raw scaling factor before clamping (v = ω × r)
+    max_length: 8          # Maximum display length
+    min_length: 1          # Must be > tip_length for visible shaft at rest
+
+  centripetal_acceleration:
+    enabled: true
+    length_at_max: 8       # Displayed when |ω| = max_speed (a = ω × v, quadratic in physics)
+    min_length: 1          # Must be > tip_length for visible shaft at rest
+
+  face_normals:
+    enabled: true
+    fixed_length: 3        # Fixed length for face normals
+
+# ==================== VECTOR RENDERING MODES ====================
+# Options: "simple" (2D line + arrowhead) or "enhanced" (3D cylinder + cone)
+vector_rendering:
+  omega: "enhanced"
+  tangential: "enhanced"
+  centripetal: "enhanced"
+
+# ==================== VECTOR GEOMETRY CONFIGURATION ====================
+# Settings for 3D cylinder+cone rendering of vectors.
+# tip_length is the FIXED arrowhead length in world units (independent of vector size).
+vector_geometry:
+  omega:
+    shaft_radius: 2
+    shaft_segments: 32
+    tip_length: 2.0           # Fixed arrowhead length (world units)
+    arrowhead_radius_ratio: 5 # Base radius / shaft radius ratio
+
+  tangential_velocity:
+    shaft_radius: 1
+    shaft_segments: 8
+    tip_length: 1.5           # Fixed arrowhead length (world units)
+    arrowhead_radius_ratio: 5
+
+  centripetal_acceleration:
+    shaft_radius: 1
+    shaft_segments: 8
+    tip_length: 1.5           # Fixed arrowhead length (world units)
+    arrowhead_radius_ratio: 5
+
+# ==================== VECTOR SHADING CONFIGURATION ====================
+vector_shading:
+  enabled: true               # Enable simple Phong-like shading on 3D vectors
+  light_direction: [0.5, 0.8, 0.3]  # Light direction (normalized internally)
+  ambient: 0.35               # Ambient light factor (0.0 - 1.0)
+  diffuse_max: 0.65           # Maximum diffuse light factor (0.0 - 1.0)
+
+# ==================== DISPLAY TOGGLES ====================
+show_face_normals: true
+
+# ==================== SYNTHETIC TEST MODE CONFIGURATION ====================
 synthetic_test:
   enabled: false
   drag_delta_omega_x: 0.1
   drag_delta_omega_y: 0.08
-
-# Increased drag sensitivity for mouse interactions (updated to match code)
-mouse_drag_sensitivity:
-  omega_x: 0.5
-  omega_y: 0.4
-  omega_z: 0.3
-
-# Vector scale factors for visualization
-vector_scales:
-  tangential: 0.08
-  tangential_max: 8
-  normal_vertex: 6
-  omega_arrow: 10
-
-# Vector rendering mode settings
-# Options: "simple" (2D line + arrowhead) or "enhanced" (3D cylinder + cone)
-vector_rendering:
-  omega: "enhanced"        # Omega vector rendering mode
-  tangential: "enhanced"   # Tangential velocity vector rendering mode
-  centripetal: "simple"    # Centripetal acceleration vector rendering mode
-
-# 3D vector shading settings
-vector_shading:
-  enabled: true            # Enable simple Phong-like shading on 3D vectors
-  light_direction: [0.5, 0.8, 0.3]  # Light direction (normalized internally)
-  ambient: 0.35            # Ambient light factor (0.0 - 1.0)
-  diffuse_max: 0.65        # Maximum diffuse light factor (0.0 - 1.0)
-
-# Face normals display toggle
-show_face_normals: true
-  
-# WASDEQ key-based rotation sensitivity (flight-simulator style)
-keys_omega_sensitivity:
-  omega_x: 40.0    # W/S keys → X-axis rotation speed
-  omega_y: 40.0    # A/D keys → Y-axis rotation speed
-  omega_z: 30.0    # E/Q keys → Z-axis rotation speed
-
-# 3D vector geometry configuration
-# Each vector type can have its own geometry settings for rendering as 3D objects
-vector_geometry:
-  # Omega (angular velocity) vector settings
-  omega:
-    type: "cylinder_cone"  # cylinder shaft + cone arrowhead
-    shaft_radius: 1        # Radius of the cylindrical shaft
-    shaft_segments: 8        # Number of segments for shaft cylinder (more = rounder)
-    arrowhead_length_ratio: 0.2  # Arrowhead length as fraction of total arrow length
-    arrowhead_radius_ratio: 1.2  # Arrowhead base radius as fraction of shaft radius
-    tip_length: 12.0         # Absolute arrowhead length in pixels (fallback for simple mode)
-    tip_radius_ratio: 0.4    # Arrowhead base radius as fraction of arrow length
-    
-  # Tangential velocity vector settings
-  tangential:
-    type: "cylinder_cone"
-    shaft_radius: 1
-    shaft_segments: 6
-    arrowhead_length_ratio: 0.25
-    arrowhead_radius_ratio: 0.35
-    tip_length: 10.0
-    tip_radius_ratio: 0.35
-    
-  # Centripetal acceleration vector settings
-  centripetal:
-    type: "cylinder_cone"
-    shaft_radius: 1
-    shaft_segments: 6
-    arrowhead_length_ratio: 0.3
-    arrowhead_radius_ratio: 0.3
-    tip_length: 8.0
-    tip_radius_ratio: 0.3

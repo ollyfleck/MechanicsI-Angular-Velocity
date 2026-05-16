@@ -10,7 +10,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from logic import cross_product, rotate_around_axis, normalize_vector
+from math_utils import cross_product, rotate_around_axis, normalize_vector
 
 
 def test_tangential_velocity_direction():
@@ -134,7 +134,7 @@ def test_camera_rotation_preserves_direction():
 
 def test_3d_velocity_vector_computation():
     """Test the full draw_3d_velocity_vectors computation."""
-    from logic import draw_3d_velocity_vectors
+    from draw_3d import draw_3d_velocity_vectors
     
     # Test with omega purely about +Z
     omega_x, omega_y, omega_z = 0, 0, 10
