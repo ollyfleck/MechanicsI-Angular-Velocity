@@ -11,7 +11,7 @@ try:
 except ImportError:
     raise RuntimeError("pygame is required for drawing functions. Run: pip install pygame")
 
-from config import COLORS, CONFIG, VECTOR_CONFIGS, CUBE_SIZE
+from config import COLORS, CONFIG, CUBE_SIZE
 from projection import project_3d_to_screen
 from math_utils import cross_product
 
@@ -491,14 +491,16 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
     Each drawable is ((depth, 'polygon', screen_coords_tuple, color)).
     Vectors scale linearly from min_length to max_length based on normalized omega magnitude.
     """
-    # Get geometry configs
-    tang_geom = CONFIG.get('vector_geometry', {}).get('tangential', {})
-    cent_geom = CONFIG.get('vector_geometry', {}).get('centripetal', {})
+    # Get geometry configs from unified 'vectors' section
+    vectors_cfg = CONFIG.get('vectors', {})
+    tang_geom = vectors_cfg.get('tangential_velocity', {}).get('geometry', {})
+    cent_geom = vectors_cfg.get('centripetal_acceleration', {}).get('geometry', {})
     
-    # Get vector visualization config
-    _, tang_cfg, cent_cfg, _ = VECTOR_CONFIGS
+    # Get vector config from unified 'vectors' section
+    tang_cfg = vectors_cfg.get('tangential_velocity', {})
+    cent_cfg = vectors_cfg.get('centripetal_acceleration', {})
     
-    tang_max_length = tang_cfg.get('max_length', 8)
+    tang_max_length = tang_cfg.get('length_at_max', 8)
     tang_min_length = tang_cfg.get('min_length', 0)
     cent_length_at_max = cent_cfg.get('length_at_max', 15)
     cent_min_length = cent_cfg.get('min_length', 0)

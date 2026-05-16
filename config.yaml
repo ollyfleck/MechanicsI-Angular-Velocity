@@ -68,68 +68,61 @@ keys_omega_sensitivity:
   omega_y: 40.0   # A/D keys → Y-axis rotation speed
   omega_z: 30.0   # E/Q keys → Z-axis rotation speed
 
-# ==================== VECTOR VISUALIZATION CONFIGURATION ====================
-# Each vector type has its own section with length control and geometry settings.
-# - length_at_max / max_length: The target display length when the associated magnitude
-#   equals max_speed. This is NOT a cap; it's the length to reach at full speed.
-# - min_length: Minimum visible length (must exceed tip_length for a visible shaft).
+# ==================== VECTOR CONFIGURATION ====================
+# Unified vector visualization settings.
+# Each vector type has:
+#   rendering: "simple" (2D line) or "enhanced" (3D cylinder+cone)
+#   length_at_max: display length when magnitude = max_speed
+#   min_length:    minimum visible length (must exceed tip_length for visible shaft)
+#   geometry:      shaft_radius, shaft_segments, tip_length, arrowhead_radius_ratio
+#
+# Shading applies to all enhanced-mode vectors.
 
-vector_visualization:
+vectors:
   omega:
     enabled: true
-    length_at_max: 16      # Displayed when |ω| = max_speed
-    min_length: 1          # Must be > tip_length for visible shaft at rest
+    rendering: "enhanced"
+    length_at_max: 16
+    min_length: 1
+    geometry:
+      shaft_radius: 2
+      shaft_segments: 32
+      tip_length: 2.0
+      arrowhead_radius_ratio: 5
 
   tangential_velocity:
     enabled: true
-    scale_factor: 1     # Raw scaling factor before clamping (v = ω × r)
-    max_length: 8          # Maximum display length
-    min_length: 1          # Must be > tip_length for visible shaft at rest
+    rendering: "enhanced"
+    length_at_max: 8
+    min_length: 1
+    geometry:
+      shaft_radius: 1
+      shaft_segments: 8
+      tip_length: 1.5
+      arrowhead_radius_ratio: 5
 
   centripetal_acceleration:
     enabled: true
-    length_at_max: 6       # Displayed when |ω| = max_speed (a = ω × v, quadratic in physics)
-    min_length: 1          # Must be > tip_length for visible shaft at rest
+    rendering: "enhanced"
+    length_at_max: 6
+    min_length: 1
+    geometry:
+      shaft_radius: 1
+      shaft_segments: 8
+      tip_length: 1.5
+      arrowhead_radius_ratio: 5
 
   face_normals:
     enabled: true
-    fixed_length: 3        # Fixed length for face normals
+    rendering: "simple"
+    fixed_length: 3
 
-# ==================== VECTOR RENDERING MODES ====================
-# Options: "simple" (2D line + arrowhead) or "enhanced" (3D cylinder + cone)
-vector_rendering:
-  omega: "enhanced"
-  tangential: "enhanced"
-  centripetal: "enhanced"
-
-# ==================== VECTOR GEOMETRY CONFIGURATION ====================
-# Settings for 3D cylinder+cone rendering of vectors.
-# tip_length is the FIXED arrowhead length in world units (independent of vector size).
-vector_geometry:
-  omega:
-    shaft_radius: 2
-    shaft_segments: 32
-    tip_length: 2.0           # Fixed arrowhead length (world units)
-    arrowhead_radius_ratio: 5 # Base radius / shaft radius ratio
-
-  tangential:
-    shaft_radius: 1
-    shaft_segments: 8
-    tip_length: 1.5           # Fixed arrowhead length (world units)
-    arrowhead_radius_ratio: 5
-
-  centripetal:
-    shaft_radius: 1
-    shaft_segments: 8
-    tip_length: 1.5           # Fixed arrowhead length (world units)
-    arrowhead_radius_ratio: 5
-
-# ==================== VECTOR SHADING CONFIGURATION ====================
+# Global shading settings for enhanced-mode vectors
 vector_shading:
-  enabled: true               # Enable simple Phong-like shading on 3D vectors
-  light_direction: [0.5, 0.8, 0.3]  # Light direction (normalized internally)
-  ambient: 0.5               # Ambient light factor (0.0 - 1.0)
-  diffuse_max: 1           # Maximum diffuse light factor (0.0 - 1.0)
+  enabled: true
+  light_direction: [0.5, 0.8, 0.3]
+  ambient: 0.5
+  diffuse_max: 1.0
 
 # ==================== DISPLAY TOGGLES ====================
 show_face_normals: true

@@ -11,7 +11,7 @@ try:
 except ImportError:
     raise RuntimeError("pygame is required for drawing functions. Run: pip install pygame")
 
-from config import COLORS, CONFIG, CUBE_SIZE, SCREEN_W, SCREEN_H, VECTOR_CONFIGS
+from config import COLORS, CONFIG, CUBE_SIZE, SCREEN_W, SCREEN_H
 from projection import project_3d_to_screen
 from geometry import CUBE_EDGES, CUBE_FACE_INDICES, CUBE_VERTS
 from math_utils import cross_product
@@ -121,15 +121,17 @@ def draw_velocity_vectors_at_vertices(verts, total_omega_mag, screen, omega_x=0,
     - Centripetal acceleration (orange): a = omega x v = omega x (omega x r), points toward rotation axis
     
     Arrow length scales linearly with magnitude from min_length to max_length.
-    Uses vector_visualization config for scale factors.
+    Uses unified 'vectors' config for scale factors.
     Toggled by show_tangential and show_centripetal flags.
     
     Note: Centripetal acceleration a = omega x v has magnitude |a| = |omega| * |v| = |omega|^2 * r,
     which scales quadratically with omega. We display it linearly from min to max based on
     normalized omega magnitude for consistent visual scaling.
     """
-    # Get vector visualization config
-    _, tang_cfg, cent_cfg, _ = VECTOR_CONFIGS
+    # Get vector config from unified 'vectors' section
+    vectors_cfg = CONFIG.get('vectors', {})
+    tang_cfg = vectors_cfg.get('tangential_velocity', {})
+    cent_cfg = vectors_cfg.get('centripetal_acceleration', {})
     
     max_speed = CONFIG['angular_velocity']['max_speed']
     speed_at_max_omega = max_speed * CUBE_SIZE          # reference for tangential velocity (linear in omega)
@@ -168,7 +170,7 @@ def draw_velocity_vectors_at_vertices(verts, total_omega_mag, screen, omega_x=0,
             speed_ratio = speed / speed_at_max_omega if speed_at_max_omega > 0 else 0
             
             min_len = tang_cfg.get('min_length', 0)
-            max_len = tang_cfg.get('max_length', 8)
+            max_len = tang_cfg.get('length_at_max', 8)
             
             # Linear scaling from min to max based on normalized speed
             clamped_ratio = min(max(speed_ratio, 0.0), 1.0)
@@ -257,8 +259,9 @@ def draw_formula(screen):
 
 def draw_face_normals(verts, screen):
     """Draw normal vectors from the center of each cube face."""
-    # Get face normal length from vector_visualization config
-    _, _, _, face_cfg = VECTOR_CONFIGS
+    # Get face normal length from unified vectors config
+    vectors_cfg = CONFIG.get('vectors', {})
+    face_cfg = vectors_cfg.get('face_normals', {})
     normal_face_len = face_cfg.get('fixed_length', 3)
     
     normal_colors = {

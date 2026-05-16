@@ -12,7 +12,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 # Config and constants
-from config import CONFIG, COLORS, SCREEN_W, SCREEN_H, CUBE_SIZE, FRAME_RATE, VECTOR_CONFIGS
+from config import CONFIG, COLORS, SCREEN_W, SCREEN_H, CUBE_SIZE, FRAME_RATE
 
 # Math utilities
 from math_utils import (
@@ -288,11 +288,11 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         # Rendering
         screen.fill(COLORS['bg'])
 
-        # Get vector rendering mode settings
-        vec_rendering = CONFIG.get('vector_rendering', {})
-        omega_mode = vec_rendering.get('omega', 'enhanced')
-        tangential_mode = vec_rendering.get('tangential', 'enhanced')
-        centripetal_mode = vec_rendering.get('centripetal', 'simple')
+        # Get vector rendering mode settings from unified 'vectors' section
+        vectors_cfg = CONFIG.get('vectors', {})
+        omega_mode = vectors_cfg.get('omega', {}).get('rendering', 'enhanced')
+        tangential_mode = vectors_cfg.get('tangential_velocity', {}).get('rendering', 'enhanced')
+        centripetal_mode = vectors_cfg.get('centripetal_acceleration', {}).get('rendering', 'enhanced')
 
         total_omega = math.sqrt(omega_x**2 + omega_y**2 + omega_z**2)
         mag_norm = min(total_omega / max_speed, 1.0)
@@ -302,28 +302,25 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
 
         # Draw omega vector - linear scaling from min to max based on normalized omega
         if show_omega_vector and total_omega > 0.01:
-            # Get omega visualization config
-            omega_vis_cfg, _, _, _ = VECTOR_CONFIGS
-            omega_length_at_max = omega_vis_cfg.get('length_at_max', 120)
-            omega_min_length = omega_vis_cfg.get('min_length', 0)
+            # Get omega config from unified 'vectors' section
+            omega_vec_cfg = vectors_cfg.get('omega', {})
+            omega_length_at_max = omega_vec_cfg.get('length_at_max', 120)
+            omega_min_length = omega_vec_cfg.get('min_length', 0)
 
             # Linear interpolation: length goes from min_length to length_at_max as omega goes from 0 to max_speed
             clamped_ratio = min(max(total_omega / max_speed, 0.0), 1.0)
             omega_display_length = omega_min_length + clamped_ratio * (omega_length_at_max - omega_min_length)
 
-            # Get tip length before checking threshold
-            vec_geom = CONFIG.get('vector_geometry', {}).get('omega', {})
-            tip_length_omega = vec_geom.get('tip_length', 18.0)  # Fixed arrowhead length
+            # Get geometry config from unified 'vectors' section
+            omega_geom = omega_vec_cfg.get('geometry', {})
+            tip_length_omega = omega_geom.get('tip_length', 18.0)  # Fixed arrowhead length
 
-            # Get geometry config for enhanced mode (also used by simple mode below)
-            shaft_radius = vec_geom.get('shaft_radius', 3.0)
-            shaft_segments = vec_geom.get('shaft_segments', 8)
-            arrowhead_radius_ratio = vec_geom.get('arrowhead_radius_ratio', 5)
+            # Get geometry config for enhanced mode
+            shaft_radius = omega_geom.get('shaft_radius', 3.0)
+            shaft_segments = omega_geom.get('shaft_segments', 8)
+            arrowhead_radius_ratio = omega_geom.get('arrowhead_radius_ratio', 5)
 
             if omega_mode == 'enhanced' and omega_display_length >= tip_length_omega:
-                shaft_radius = vec_geom.get('shaft_radius', 3.0)
-                shaft_segments = vec_geom.get('shaft_segments', 8)
-                arrowhead_radius_ratio = vec_geom.get('arrowhead_radius_ratio', 5)
 
                 omega_unit = omega_x / total_omega, omega_y / total_omega, omega_z / total_omega
                 # Apply camera rotation for view only (omega is in world/inertial frame)

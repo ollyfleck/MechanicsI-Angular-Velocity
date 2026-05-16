@@ -37,50 +37,6 @@ else:
     COLORS['highlight'] = (255, 220, 180)
 
 # ==================== VECTOR CONFIGS ====================
-
-
-def get_vector_config():
-    """Get vector visualization configuration, falling back to legacy keys."""
-    vec_vis = CONFIG.get('vector_visualization', {})
-
-    # Omega vector config
-    omega_cfg = vec_vis.get('omega', {})
-    if not omega_cfg:
-        omega_cfg = {
-            'length_at_max': 60,
-            'min_length': 30,
-            'enabled': True
-        }
-
-    # Tangential velocity config
-    tang_cfg = vec_vis.get('tangential_velocity', {})
-    if not tang_cfg:
-        tang_cfg = {
-            'scale_factor': CONFIG.get('vector_scales', {}).get('tangential', 0.08),
-            'max_length': CONFIG.get('vector_scales', {}).get('tangential_max', 8),
-            'min_length': 0,
-            'enabled': True
-        }
-
-    # Centripetal acceleration config
-    cent_cfg = vec_vis.get('centripetal_acceleration', {})
-    if not cent_cfg:
-        cent_cfg = {
-            'length_at_max': CONFIG.get('vector_scales', {}).get('normal_vertex', 6),
-            'min_length': 0,
-            'enabled': True
-        }
-
-    # Face normals config
-    face_cfg = vec_vis.get('face_normals', {})
-    if not face_cfg:
-        face_cfg = {
-            'fixed_length': CONFIG.get('vector_scales', {}).get('normal_face', 25),
-            'min_length': CONFIG.get('vector_scales', {}).get('normal_face', 25),
-            'enabled': True
-        }
-
-    return omega_cfg, tang_cfg, cent_cfg, face_cfg
-
-
-VECTOR_CONFIGS = get_vector_config()
+# Access: CONFIG['vectors'][vector_name] for vector settings
+# Access: CONFIG['vectors'][vector_name]['geometry'] for geometry settings
+# Access: CONFIG['vector_shading'] for global shading settings
