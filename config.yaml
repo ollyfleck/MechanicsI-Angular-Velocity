@@ -128,8 +128,8 @@ vector_geometry:
 vector_shading:
   enabled: true               # Enable simple Phong-like shading on 3D vectors
   light_direction: [0.5, 0.8, 0.3]  # Light direction (normalized internally)
-  ambient: 0.35               # Ambient light factor (0.0 - 1.0)
-  diffuse_max: 0.65           # Maximum diffuse light factor (0.0 - 1.0)
+  ambient: 0.5               # Ambient light factor (0.0 - 1.0)
+  diffuse_max: 1           # Maximum diffuse light factor (0.0 - 1.0)
 
 # ==================== DISPLAY TOGGLES ====================
 show_face_normals: true
