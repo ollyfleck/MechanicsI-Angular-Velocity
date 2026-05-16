@@ -484,7 +484,7 @@ def draw_3d_vector_omega_on_screen(screen, center_screen, direction_screen, tota
 
 # ==================== 3D VELOCITY VECTORS ====================
 
-def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=0, omega_z=0, max_vectors=3, show_tangential=True, show_centripetal=True, view_x=0, view_y=0, view_z=0):
+def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=0, omega_z=0, max_vectors=3, show_tangential=True, show_centripetal=True, view_x=0, view_y=0, view_z=0, vertex_mask=None):
     """Draw tangential velocity vectors and centripetal acceleration vectors as 3D cylinder+cone objects.
     
     Returns two lists: (tangential_drawables, centripetal_drawables)
@@ -513,18 +513,22 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
     
     # Select only a subset of vertices
     valid_verts = []
-    for v in verts:
+    for i, v in enumerate(verts):
         r_vec = np.array(v)
         r_mag = math.sqrt(sum(x**2 for x in r_vec))
         if r_mag >= 0.5:
-            valid_verts.append(v)
+            # Apply vertex mask if provided
+            if vertex_mask is not None:
+                if not vertex_mask.get(i, False):
+                    continue
+            valid_verts.append((i, v))
     
-    selected_verts = valid_verts[:max_vectors]
+    selected_verts = [(i, v) for i, v in valid_verts[:max_vectors]]
     
     tangential_drawables = []
     centripetal_drawables = []
     
-    for v in selected_verts:
+    for vert_idx, v in selected_verts:
         r_vec = np.array(v)
         
         # Compute tangential velocity via cross product: v = omega x r

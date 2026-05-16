@@ -113,7 +113,7 @@ def draw_velocity_arrow_at_point(point_3d, velocity_vec, screen, is_normal=False
     pygame.draw.lines(screen, color, False, [pa1, p_tip, pa2], 3)
 
 
-def draw_velocity_vectors_at_vertices(verts, total_omega_mag, screen, omega_x=0, omega_y=0, omega_z=0, max_vectors=3, show_tangential=True, show_centripetal=True):
+def draw_velocity_vectors_at_vertices(verts, total_omega_mag, screen, omega_x=0, omega_y=0, omega_z=0, max_vectors=3, show_tangential=True, show_centripetal=True, vertex_mask=None):
     """Draw tangential velocity vectors and centripetal acceleration vectors at up to max_vectors cube vertices.
     
     Each vertex shows:
@@ -140,16 +140,20 @@ def draw_velocity_vectors_at_vertices(verts, total_omega_mag, screen, omega_x=0,
     
     # Select only a subset of vertices (skip vertices near origin)
     valid_verts = []
-    for v in verts:
+    for i, v in enumerate(verts):
         r_vec = np.array(v)
         r_mag = math.sqrt(sum(x**2 for x in r_vec))
         if r_mag >= 0.5:
-            valid_verts.append(v)
+            # Apply vertex mask if provided
+            if vertex_mask is not None:
+                if not vertex_mask.get(i, False):
+                    continue
+            valid_verts.append((i, v))
     
     # Limit to max_vectors
-    selected_verts = valid_verts[:max_vectors]
+    selected_verts = [(i, v) for i, v in valid_verts[:max_vectors]]
     
-    for v in selected_verts:
+    for vert_idx, v in selected_verts:
         r_vec = np.array(v)
         
         # Compute tangential velocity via cross product: v = omega x r

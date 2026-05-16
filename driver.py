@@ -111,6 +111,9 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
     show_centripetal_vectors = False
     show_face_normals = False
 
+    # Per-vertex vector display toggles (keys 1-8, all start OFF)
+    vertex_vector_enabled = {i: False for i in range(8)}
+
     while running:
         # Check duration
         if duration_seconds and (pygame.time.get_ticks() - start_time) > (duration_seconds * 1000):
@@ -138,6 +141,9 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                     show_centripetal_vectors = not show_centripetal_vectors
                 elif event.key == pygame.K_n:  # Toggle face normals
                     show_face_normals = not show_face_normals
+                elif event.key >= pygame.K_1 and event.key <= pygame.K_8:  # Toggle per-vertex vectors
+                    vert_idx = event.key - pygame.K_1
+                    vertex_vector_enabled[vert_idx] = not vertex_vector_enabled[vert_idx]
                 elif event.key == pygame.K_ESCAPE:
                     running = False
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -427,11 +433,17 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
 
         # Draw tangential and centripetal vectors based on rendering mode
         if show_tangential_vectors or show_centripetal_vectors:
+            # Build vertex mask from per-vertex toggles
+            vertex_mask = dict(vertex_vector_enabled)
+            # When per-vertex toggles are used, show all enabled vertices (not limited to 3)
+            max_display_vectors = 8
             if tangential_mode == 'enhanced' and centripetal_mode == 'enhanced':
                 tangential_drawables, centripetal_drawables = draw_3d_velocity_vectors(
                     world_verts, total_omega, screen, omega_x, omega_y, omega_z,
                     show_tangential=show_tangential_vectors, show_centripetal=show_centripetal_vectors,
-                    view_x=view_x_deg, view_y=view_y_deg, view_z=view_z_deg
+                    view_x=view_x_deg, view_y=view_y_deg, view_z=view_z_deg,
+                    max_vectors=max_display_vectors,
+                    vertex_mask=vertex_mask
                 )
                 vector_drawables.extend(tangential_drawables)
                 vector_drawables.extend(centripetal_drawables)
@@ -439,25 +451,29 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 if show_tangential_vectors and tangential_mode == 'simple':
                     draw_velocity_vectors_at_vertices(
                         world_verts, total_omega, screen, omega_x, omega_y, omega_z,
-                        max_vectors=3, show_tangential=True, show_centripetal=False
+                        max_vectors=max_display_vectors, show_tangential=True, show_centripetal=False,
+                        vertex_mask=vertex_mask
                     )
                 if show_centripetal_vectors and centripetal_mode == 'simple':
                     draw_velocity_vectors_at_vertices(
                         world_verts, total_omega, screen, omega_x, omega_y, omega_z,
-                        max_vectors=3, show_tangential=False, show_centripetal=True
+                        max_vectors=max_display_vectors, show_tangential=False, show_centripetal=True,
+                        vertex_mask=vertex_mask
                     )
                 if show_tangential_vectors and tangential_mode == 'enhanced':
                     tang_drawables, _ = draw_3d_velocity_vectors(
                         world_verts, total_omega, screen, omega_x, omega_y, omega_z,
                         show_tangential=True, show_centripetal=False,
-                        view_x=view_x_deg, view_y=view_y_deg, view_z=view_z_deg
+                        view_x=view_x_deg, view_y=view_y_deg, view_z=view_z_deg,
+                        vertex_mask=vertex_mask
                     )
                     vector_drawables.extend(tang_drawables)
                 if show_centripetal_vectors and centripetal_mode == 'enhanced':
                     _, cent_drawables = draw_3d_velocity_vectors(
                         world_verts, total_omega, screen, omega_x, omega_y, omega_z,
                         show_tangential=False, show_centripetal=True,
-                        view_x=view_x_deg, view_y=view_y_deg, view_z=view_z_deg
+                        view_x=view_x_deg, view_y=view_y_deg, view_z=view_z_deg,
+                        vertex_mask=vertex_mask
                     )
                     vector_drawables.extend(cent_drawables)
 
@@ -473,11 +489,11 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
             edge_drawables.append((avg_z, 'line', (p1, p2), (255, 255, 255)))
 
         # Create vertex drawable entries: (depth, 'vertex', screen_pos, color)
-        # Each vertex gets its own depth for proper occlusion
+        # Only draw vertex dots for enabled vertices
         vertex_drawables = []
-        for v in rotated_verts:
+        for i, v in enumerate(rotated_verts):
             p = project_3d_to_screen(*v)
-            if p is not None:
+            if p is not None and vertex_vector_enabled.get(i, False):
                 vertex_drawables.append((v[2], 'vertex', p, (255, 50, 50)))
 
         # Combine all drawables and sort by depth (back to front)
@@ -514,7 +530,7 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
             draw_face_normals(rotated_verts, screen)
 
         # UI Text - including toggle states and FPS
-        toggle_info = font.render(f'[O] Omega: {"ON" if show_omega_vector else "OFF"}  [V] Tangential: {"ON" if show_tangential_vectors else "OFF"}  [C] Centripetal: {"ON" if show_centripetal_vectors else "OFF"}  [N] Normals: {"ON" if show_face_normals else "OFF"}  [WASDEQ] Rotate', True, (150, 150, 150))
+        toggle_info = font.render(f'[O] Omega: {"ON" if show_omega_vector else "OFF"}  [V] Tangential: {"ON" if show_tangential_vectors else "OFF"}  [C] Centripetal: {"ON" if show_centripetal_vectors else "OFF"}  [N] Normals: {"ON" if show_face_normals else "OFF"}  [1-8] Vertex: {"ON" if any(vertex_vector_enabled.values()) else "OFF"}  [WASDEQ] Rotate', True, (150, 150, 150))
         mag_text = f'Angular Velocity: |ω| = {total_omega:.2f} rad/s'
         info1 = font.render(mag_text, True, (255, 255, 255))
 
