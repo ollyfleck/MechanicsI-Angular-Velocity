@@ -598,15 +598,12 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
     tang_cfg = vectors_cfg.get('tangential_velocity', {})
     cent_cfg = vectors_cfg.get('centripetal_acceleration', {})
     
-    tang_max_length = tang_cfg.get('length_at_max', 8)
+    tang_scale = tang_cfg.get('scale_factor', 0.2)
     tang_min_length = tang_cfg.get('min_length', 0)
-    cent_length_at_max = cent_cfg.get('length_at_max', 15)
+    tang_clamp_max = tang_cfg.get('clamp_max', 25)
+    cent_scale = cent_cfg.get('scale_factor', 0.05)
     cent_min_length = cent_cfg.get('min_length', 0)
-    
-    # Compute reference values: at omega = max_speed, with r = CUBE_SIZE
-    max_speed = CONFIG['angular_velocity']['max_speed']
-    speed_at_max_omega = max_speed * CUBE_SIZE          # reference for tangential velocity (linear in omega)
-    ref_a_mag = max_speed * max_speed * CUBE_SIZE      # reference for centripetal acceleration (quadratic in omega)
+    cent_clamp_max = cent_cfg.get('clamp_max', 25)
     
     # Use full omega vector for proper cross product
     omega_vec = np.array([omega_x, omega_y, omega_z])
@@ -638,10 +635,10 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
         if show_tangential:
             speed = math.sqrt(sum(c**2 for c in tangential_v))
             
-            # Linear interpolation from min to max based on normalized speed
-            speed_ratio = speed / speed_at_max_omega if speed_at_max_omega > 0 else 0
-            clamped_ratio = min(max(speed_ratio, 0.0), 1.0)
-            display_length = tang_min_length + clamped_ratio * (tang_max_length - tang_min_length)
+            # Scale by speed using scale_factor, then clamp
+            display_length = speed * tang_scale
+            display_length = min(display_length, tang_clamp_max)
+            display_length = max(display_length, tang_min_length)
             
             # Only draw if there's enough room for both shaft and arrowhead
             t_tip_length = tang_geom.get('tip_length', 1.5)
@@ -717,11 +714,10 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
             centripetal_a = cross_product(omega_vec, tangential_v)
             a_mag = math.sqrt(sum(c**2 for c in centripetal_a))
             
-            # Scale centripetal vector linearly from min to max based on normalized omega
-            # Use quadratic reference (max_speed^2 * CUBE_SIZE) so it scales linearly with display
-            cent_speed_ratio = a_mag / ref_a_mag if ref_a_mag > 0 else 0
-            clamped_ratio = min(max(cent_speed_ratio, 0.0), 1.0)
-            display_length = cent_min_length + clamped_ratio * (cent_length_at_max - cent_min_length)
+            # Scale by magnitude using scale_factor, then clamp
+            display_length = a_mag * cent_scale
+            display_length = min(display_length, cent_clamp_max)
+            display_length = max(display_length, cent_min_length)
             
             # Only draw if there's enough room for both shaft and arrowhead
             c_tip_length = cent_geom.get('tip_length', 2.0)

@@ -17,12 +17,12 @@ physics:
 
 angular_velocity:
   damping: 1.0                  # No friction - momentum is preserved indefinitely until user applies new force
-  max_speed: 180.0              # Maximum angular velocity magnitude (rad/s)
+  max_speed: 8              # Maximum angular velocity magnitude (rad/s)
 
 # ==================== VISUAL ROTATION CONFIGURATION ====================
 visual_rotation:
   enabled: true                 # Enable visual rotation scaling system
-  multiplier: 0.05              # Direct speed multiplier (0.1=very slow, 2.0=2x fast, etc.)
+  multiplier: 1              # Direct speed multiplier (0.1=very slow, 2.0=2x fast, etc.)
 
 # ==================== PROJECTION CONFIGURATION ====================
 projection:
@@ -57,22 +57,23 @@ edge_colors:
 
 # ==================== MOUSE INPUT CONFIGURATION ====================
 mouse_drag_sensitivity:
-  omega_x: 0.5    # Vertical drag → X-axis rotation sensitivity
-  omega_y: 0.4    # Horizontal drag → Y-axis rotation sensitivity
-  omega_z: 0.3    # Combined drag → Z-axis rotation sensitivity
+  omega_x: 0.1    # Vertical drag → X-axis rotation sensitivity
+  omega_y: 0.1    # Horizontal drag → Y-axis rotation sensitivity
+  omega_z: 0.06    # Combined drag → Z-axis rotation sensitivity
 
 # WASDEQ key-based rotation sensitivity (flight-simulator style)
 keys_omega_sensitivity:
-  omega_x: 40.0   # W/S keys → X-axis rotation speed
-  omega_y: 40.0   # A/D keys → Y-axis rotation speed
-  omega_z: 30.0   # E/Q keys → Z-axis rotation speed
+  omega_x: 2   # W/S keys → X-axis rotation speed
+  omega_y: 2   # A/D keys → Y-axis rotation speed
+  omega_z: 2   # E/Q keys → Z-axis rotation speed
 
 # ==================== VECTOR CONFIGURATION ====================
 # Unified vector visualization settings.
 # Each vector type has:
 #   rendering: "simple" (2D line) or "enhanced" (3D cylinder+cone)
-#   length_at_max: display length when magnitude = max_speed
+#   scale_factor: display length per unit of physical magnitude (e.g., units per rad/s)
 #   min_length:    minimum visible length (must exceed tip_length for visible shaft)
+#   clamp_max:     maximum display length to prevent overshoot
 #   geometry:      shaft_radius, shaft_segments, tip_length, arrowhead_radius_ratio
 #
 # Shading applies to all enhanced-mode vectors.
@@ -81,8 +82,9 @@ vectors:
   omega:
     enabled: true
     rendering: "enhanced"
-    length_at_max: 16
-    min_length: 1
+    scale_factor: 1         # 0.5 display units per rad/s
+    min_length: 0.01
+    clamp_max: 120
     geometry:
       shaft_radius: 2
       shaft_segments: 32
@@ -92,8 +94,9 @@ vectors:
   tangential_velocity:
     enabled: true
     rendering: "enhanced"
-    length_at_max: 8
-    min_length: 1
+    scale_factor: 1         # 0.2 display units per unit of tangential speed
+    min_length: 0.01
+    clamp_max: 25
     geometry:
       shaft_radius: 1
       shaft_segments: 8
@@ -103,8 +106,9 @@ vectors:
   centripetal_acceleration:
     enabled: true
     rendering: "enhanced"
-    length_at_max: 6
-    min_length: 1
+    scale_factor: 1        # 0.05 display units per unit of centripetal accel
+    min_length: 0.01
+    clamp_max: 25
     geometry:
       shaft_radius: 1
       shaft_segments: 8

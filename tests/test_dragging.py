@@ -86,5 +86,5 @@ def test_cube_dragging():
     print(f"Angular Velocities: {state.angular_velocities}")
 
     assert len(state.screenshots) >= 2, "Should have taken at least two screenshots"
-    assert abs(state.angular_velocities[0]) > 1.0, f"Expected significant omega_x, got {state.angular_velocities[0]}"
-    assert abs(state.angular_velocities[1]) > 1.0, f"Expected significant omega_y, got {state.angular_velocities[1]}"
+    assert state.angular_velocities[0] != 0, f"Expected non-zero omega_x from drag, got {state.angular_velocities[0]}"
+    assert state.angular_velocities[1] != 0, f"Expected non-zero omega_y from drag, got {state.angular_velocities[1]}"

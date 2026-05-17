@@ -57,13 +57,12 @@ def apply_drag_impulse_damping(omega_x, omega_y, omega_z):
 
 
 def clamp_angular_velocity(omega_x, omega_y, omega_z):
-    """Clamp angular velocity to maximum allowed magnitude."""
-    max_mag = CONFIG['angular_velocity']['max_speed']
+    """Clamp angular velocity to maximum allowed magnitude per axis."""
+    max_per_axis = CONFIG['angular_velocity']['max_speed']
     
-    current_mag = math.sqrt(omega_x**2 + omega_y**2 + omega_z**2)
+    # Clamp each component independently to the max_speed limit
+    omega_x = max(-max_per_axis, min(max_per_axis, omega_x))
+    omega_y = max(-max_per_axis, min(max_per_axis, omega_y))
+    omega_z = max(-max_per_axis, min(max_per_axis, omega_z))
     
-    # Only scale down if velocity EXCEEDS the maximum
-    if current_mag > max_mag:
-        scale = max_mag / current_mag
-        return omega_x * scale, omega_y * scale, omega_z * scale
     return omega_x, omega_y, omega_z

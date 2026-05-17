@@ -291,16 +291,18 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         # Collect all drawable objects with depth for sorting: (depth, draw_func, args, color)
         drawables = []
 
-        # Draw omega vector - linear scaling from min to max based on normalized omega
+        # Draw omega vector - scale by real omega magnitude using scale_factor
         if show_omega_vector and total_omega > 0.01:
             # Get omega config from unified 'vectors' section
             omega_vec_cfg = vectors_cfg.get('omega', {})
-            omega_length_at_max = omega_vec_cfg.get('length_at_max', 120)
+            omega_scale = omega_vec_cfg.get('scale_factor', 0.5)
             omega_min_length = omega_vec_cfg.get('min_length', 0)
+            omega_clamp_max = omega_vec_cfg.get('clamp_max', 120)
 
-            # Linear interpolation: length goes from min_length to length_at_max as omega goes from 0 to max_speed
-            clamped_ratio = min(max(total_omega / max_speed, 0.0), 1.0)
-            omega_display_length = omega_min_length + clamped_ratio * (omega_length_at_max - omega_min_length)
+            # Scale by omega magnitude, then clamp
+            omega_display_length = total_omega * omega_scale
+            omega_display_length = min(omega_display_length, omega_clamp_max)
+            omega_display_length = max(omega_display_length, omega_min_length)
 
             # Get geometry config from unified 'vectors' section
             omega_geom = omega_vec_cfg.get('geometry', {})
@@ -357,7 +359,7 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 omega_color = (r, g, b)
 
                 center_3d = (0.0, 0.0, 0.0)
-                total_length = omega_min_length + clamped_ratio * (omega_length_at_max - omega_min_length)
+                total_length = omega_display_length
                 tip_3d = (omega_rot[0] * total_length, omega_rot[1] * total_length, omega_rot[2] * total_length)
 
                 p_center = project_3d_to_screen(*center_3d)
@@ -511,8 +513,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
 
         # UI Text - including toggle states and FPS
         toggle_info = font.render(f'[O] Omega: {"ON" if show_omega_vector else "OFF"}  [V] Tangential: {"ON" if show_tangential_vectors else "OFF"}  [C] Centripetal: {"ON" if show_centripetal_vectors else "OFF"}  [N] Normals: {"ON" if show_face_normals else "OFF"}  [1-8] Vertex: {"ON" if any(vertex_vector_enabled.values()) else "OFF"}  [WASDEQ] Rotate', True, (150, 150, 150))
-        mag_text = f'Angular Velocity: |ω| = {total_omega:.2f} rad/s'
-        info1 = font.render(mag_text, True, (255, 255, 255))
+        omega_text = f'Angular Velocity: ω = ({omega_x:+.2f}, {omega_y:+.2f}, {omega_z:+.2f}) rad/s'
+        info1 = font.render(omega_text, True, (255, 255, 255))
 
         # Visual scale indicator and FPS display
         fps_text = f'FPS: {display_fps}'
