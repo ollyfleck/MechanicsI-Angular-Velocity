@@ -37,6 +37,7 @@ from draw_3d import (
     draw_3d_cylinder, draw_3d_cone, draw_3d_velocity_vectors,
     draw_3d_face_normals,
     apply_vector_shading_to_face,
+    compute_vector_alpha,
 )
 
 
@@ -278,6 +279,18 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
 
         # Rendering
         screen.fill(COLORS['bg'])
+        
+        # Create overlay surfaces for alpha-blended vectors
+        # We need separate surfaces per alpha level to blend correctly
+        overlay_surfaces = {}  # alpha -> pygame.Surface
+        
+        def get_overlay_surface(alpha):
+            """Get or create an overlay surface for the given alpha level."""
+            if alpha not in overlay_surfaces:
+                overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                overlay.set_alpha(alpha)  # Set per-surface alpha for blending
+                overlay_surfaces[alpha] = overlay
+            return overlay_surfaces[alpha]
 
         # Get vector rendering mode settings from unified 'vectors' section
         vectors_cfg = CONFIG.get('vectors', {})
@@ -313,41 +326,47 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
             shaft_segments = omega_geom.get('shaft_segments', 8)
             arrowhead_radius_ratio = omega_geom.get('arrowhead_radius_ratio', 5)
 
-            if omega_mode == 'enhanced' and omega_display_length >= tip_length_omega:
-
+            # Draw omega vector with alpha support - remove tip_length check so it draws even when below tip
+            if omega_mode == 'enhanced':
                 omega_unit = omega_x / total_omega, omega_y / total_omega, omega_z / total_omega
                 # Apply camera rotation for view only (omega is in world/inertial frame)
                 omega_rot = rotate_around_axis(omega_unit, [0, 1, 0], view_y_deg)
                 omega_rot = rotate_around_axis(omega_rot, [0, 0, 1], -view_z_deg)
                 omega_rot = rotate_around_axis(omega_rot, [1, 0, 0], view_x_deg)
 
-                total_length = omega_display_length
-                shaft_length = max(total_length - tip_length_omega, 0.01)  # Shaft = total minus fixed tip
-                arrowhead_base_radius = shaft_radius * arrowhead_radius_ratio
-
-                center_3d = (0.0, 0.0, 0.0)
-                shaft_end_3d = (omega_rot[0] * shaft_length, omega_rot[1] * shaft_length, omega_rot[2] * shaft_length)
-                cone_apex_3d = (omega_rot[0] * total_length, omega_rot[1] * total_length, omega_rot[2] * total_length)
-
                 r = int(80 + mag_norm * 175)
                 g = int(80 + (1 - mag_norm) * 100)
                 b = int(255 - mag_norm * 150)
                 omega_color = (r, g, b)
 
+                # Use draw_3d_vector_omega_drawables for alpha support
+                # Compute total_length for the drawables function
+                total_length = omega_display_length
+                center_3d = (0.0, 0.0, 0.0)
+                
+                # Get cylinder and cone faces with alpha
+                alpha = compute_vector_alpha(total_length, tip_length_omega)
+                
+                shaft_length = max(total_length - tip_length_omega, 0.01)
+                arrowhead_base_radius = shaft_radius * arrowhead_radius_ratio
+                
+                shaft_end_3d = (omega_rot[0] * shaft_length, omega_rot[1] * shaft_length, omega_rot[2] * shaft_length)
+                cone_apex_3d = (omega_rot[0] * total_length, omega_rot[1] * total_length, omega_rot[2] * total_length)
+
                 cylinder_faces = draw_3d_cylinder(center_3d, shaft_end_3d, shaft_radius, shaft_segments, screen, omega_color, depth_offset=0.01)
                 for face, depth, normal in cylinder_faces:
-                    drawables.append((depth, 'polygon', face, omega_color, normal))
+                    drawables.append((depth, 'polygon', face, omega_color, normal, alpha))
 
                 cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_radius, shaft_segments, screen, omega_color, depth_offset=-0.01)
                 for face, depth, normal in cone_faces:
-                    drawables.append((depth, 'polygon', face, omega_color, normal))
+                    drawables.append((depth, 'polygon', face, omega_color, normal, alpha))
                 
                 # Draw a red circle at the base of the omega vector's shaft
                 p_center_circle = project_3d_to_screen(*center_3d)
                 if p_center_circle is not None:
                     drawables.append((center_3d[2] + 0.1, 'circle', (p_center_circle, shaft_radius), (255, 0, 0)))
-            # Also skip simple mode if display length is too small for arrowhead
-            elif omega_mode == 'simple' and omega_display_length >= tip_length_omega:
+            # Also draw in simple mode even when below tip_length - alpha handles visibility
+            elif omega_mode == 'simple':
                 omega_unit = (omega_x / total_omega, omega_y / total_omega, omega_z / total_omega)
                 omega_rot = rotate_around_axis(omega_unit, [0, 1, 0], view_y_deg)
                 omega_rot = rotate_around_axis(omega_rot, [0, 0, 1], -view_z_deg)
@@ -488,18 +507,27 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         all_drawables.sort(key=lambda d: d[0], reverse=True)
 
         # Draw all depth-sorted polygons, lines, and vertices with shading
+        # Alpha-blended drawables go to overlay surfaces instead
         for drawable in all_drawables:
             depth = drawable[0]
             draw_type = drawable[1]
             args = drawable[2]
             color = drawable[3]
             face_normal = drawable[4] if len(drawable) > 4 else None
+            alpha = drawable[5] if len(drawable) > 5 else None
+            
             if draw_type == 'polygon':
                 if face_normal is not None:
                     shaded_color = apply_vector_shading_to_face(color, face_normal, depth)
                 else:
                     shaded_color = color
-                pygame.draw.polygon(screen, shaded_color, args, 0)  # filled
+                
+                if alpha is not None and alpha < 255:
+                    # Draw to overlay surface for alpha blending
+                    overlay = get_overlay_surface(alpha)
+                    pygame.draw.polygon(overlay, shaded_color, args, 0)
+                else:
+                    pygame.draw.polygon(screen, shaded_color, args, 0)  # filled
             elif draw_type == 'line':
                 p1, p2 = args
                 pygame.draw.line(screen, color, p1, p2, 3)
@@ -509,6 +537,10 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
             elif draw_type == 'circle':
                 (cx, cy), radius = args
                 pygame.draw.circle(screen, color, (int(cx), int(cy)), int(radius))
+        
+        # Blit all overlay surfaces onto the main screen
+        for alpha, overlay in overlay_surfaces.items():
+            screen.blit(overlay, (0, 0))
 
 
         # UI Text - including toggle states and FPS

@@ -18,6 +18,29 @@ from math_utils import cross_product, rotate_around_axis
 
 # ==================== VECTOR SHADING ====================
 
+def compute_vector_alpha(magnitude, tip_length):
+    """Compute alpha (0-255) for a vector based on its magnitude relative to tip length.
+    
+    Fade curve:
+      - magnitude 0        -> alpha 0   (fully transparent)
+      - magnitude < tip    -> alpha = (magnitude / tip) * 255  (linear fade)
+      - magnitude >= tip   -> alpha 255 (fully opaque, shaft exists)
+    
+    Args:
+        magnitude: current display length of the vector
+        tip_length: the tip/arrowhead length from config
+    
+    Returns:
+        Alpha value 0-255, or None if fully opaque (no alpha blending needed)
+    """
+    if tip_length <= 0:
+        return None
+    if magnitude >= tip_length:
+        return None  # Fully opaque, no alpha blending needed
+    alpha = (magnitude / tip_length) * 255.0
+    return max(0, min(255, int(alpha)))
+
+
 def apply_vector_shading_to_face(color, face_normal, depth):
     """Apply simple Phong-like shading to a face color based on its normal and depth.
     
@@ -288,26 +311,25 @@ def draw_3d_cone(apex, base_center, base_radius, segments, screen, color, depth_
 
 # ==================== 3D VECTOR RENDERING ====================
 
-def draw_3d_vector_omega(screen, center, direction, magnitude, config, geom_config):
-    """Draw the omega vector as a 3D cylinder with cone arrowhead.
+def draw_3d_vector_omega_drawables(center, direction, magnitude, config, geom_config, max_speed, screen):
+    """Create drawables for the omega vector with alpha support.
     
-    direction: normalized 3D vector (already rotated by camera view)
-    magnitude: current omega magnitude for color scaling.
-    Returns list of drawables or empty list if magnitude is too small.
+    Returns list of drawables as (depth, 'polygon', face, color, normal, alpha) tuples,
+    or empty list if magnitude is too small.
     """
     if magnitude < 0.1:
-        return []
+        return [], None
     
     # Get geometry config
     shaft_radius = geom_config.get('shaft_radius', 3.0)
     shaft_segments = geom_config.get('shaft_segments', 8)
     arrowhead_length_ratio = geom_config.get('arrowhead_length_ratio', 0.2)
     arrowhead_radius_ratio = geom_config.get('arrowhead_radius_ratio', 0.4)
+    tip_length = geom_config.get('tip_length', 18.0)
     
     # Total arrow length
     total_length = min(magnitude * 0.5 + 20, 120)  # Scale with magnitude, clamped
     shaft_length = total_length * (1.0 - arrowhead_length_ratio)
-    arrowhead_length = total_length * arrowhead_length_ratio
     arrowhead_base_radius = shaft_radius * arrowhead_radius_ratio
     
     # End point of shaft (before arrowhead)
@@ -325,17 +347,26 @@ def draw_3d_vector_omega(screen, center, direction, magnitude, config, geom_conf
     )
     
     # Get color from magnitude
-    mag_norm = min(magnitude / config['angular_velocity']['max_speed'], 1.0)
+    mag_norm = min(magnitude / max_speed, 1.0)
     r = int(80 + mag_norm * 175)
     g = int(80 + (1 - mag_norm) * 100)
     b = int(255 - mag_norm * 150)
     color = (r, g, b)
     
+    # Compute alpha based on total_length vs tip_length
+    alpha = compute_vector_alpha(total_length, tip_length)
+    
     # Get cylinder and cone faces
     cylinder_faces = draw_3d_cylinder(center, shaft_end, shaft_radius, shaft_segments, screen, color, depth_offset=0.01)
     cone_faces = draw_3d_cone(cone_apex, shaft_end, arrowhead_base_radius, shaft_segments, screen, color, depth_offset=-0.01)
     
-    return cylinder_faces + cone_faces, color
+    drawables = []
+    for face, depth, normal in cylinder_faces:
+        drawables.append((depth, 'polygon', face, color, normal, alpha))
+    for face, depth, normal in cone_faces:
+        drawables.append((depth, 'polygon', face, color, normal, alpha))
+    
+    return drawables, color
 
 
 def draw_3d_vector(screen, start_3d, direction_3d, length, color, geom_config, proj_multiplier_x=0.15, proj_multiplier_y=0.12):
@@ -572,10 +603,13 @@ def draw_3d_face_normals(verts, screen):
         # Average depth for sorting
         avg_depth = (center_pt[2] + shaft_end_3d[2] + cone_apex_3d[2]) / 3.0
         
+        # Compute alpha for face normals based on length vs tip length
+        n_alpha = compute_vector_alpha(length, tip_length)
+        
         for face, depth, normal in cylinder_faces:
-            drawables.append((avg_depth, 'polygon', face, color, normal))
+            drawables.append((avg_depth, 'polygon', face, color, normal, n_alpha))
         for face, depth, normal in cone_faces:
-            drawables.append((avg_depth, 'polygon', face, color, normal))
+            drawables.append((avg_depth, 'polygon', face, color, normal, n_alpha))
     
     return drawables
 
@@ -640,10 +674,8 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
             display_length = min(display_length, tang_clamp_max)
             display_length = max(display_length, tang_min_length)
             
-            # Only draw if there's enough room for both shaft and arrowhead
+            # Draw even when below tip length - alpha handles visibility
             t_tip_length = tang_geom.get('tip_length', 1.5)
-            if display_length < t_tip_length:
-                continue
             
             if speed >= 0.01:
                 scaled_v = (tangential_v[0] / speed * display_length,
@@ -704,10 +736,13 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
                 cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, t_shaft_radius, t_shaft_segments, screen, COLORS['velocity'], depth_offset=0.01)
                 cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r, t_shaft_segments, screen, COLORS['velocity'], depth_offset=-0.01)
                 
+                # Compute alpha based on display length vs tip length
+                t_alpha = compute_vector_alpha(display_length, t_tip_length)
+                
                 for face, depth, normal in cylinder_faces:
-                    tangential_drawables.append((avg_depth, 'polygon', face, COLORS['velocity'], normal))
+                    tangential_drawables.append((avg_depth, 'polygon', face, COLORS['velocity'], normal, t_alpha))
                 for face, depth, normal in cone_faces:
-                    tangential_drawables.append((avg_depth, 'polygon', face, COLORS['velocity'], normal))
+                    tangential_drawables.append((avg_depth, 'polygon', face, COLORS['velocity'], normal, t_alpha))
         
         # Draw centripetal acceleration if enabled
         if show_centripetal:
@@ -719,10 +754,8 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
             display_length = min(display_length, cent_clamp_max)
             display_length = max(display_length, cent_min_length)
             
-            # Only draw if there's enough room for both shaft and arrowhead
+            # Draw even when below tip length - alpha handles visibility
             c_tip_length = cent_geom.get('tip_length', 2.0)
-            if display_length < c_tip_length:
-                continue
             
             if a_mag >= 0.01:
                 a_unit = np.array([c / a_mag for c in centripetal_a])
@@ -778,9 +811,12 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
                 cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, c_shaft_radius, c_shaft_segments, screen, COLORS['highlight'], depth_offset=0.01)
                 cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r_c, c_shaft_segments, screen, COLORS['highlight'], depth_offset=-0.01)
                 
+                # Compute alpha based on display length vs tip length
+                c_alpha = compute_vector_alpha(display_length, c_tip_length)
+                
                 for face, depth, normal in cylinder_faces:
-                    centripetal_drawables.append((avg_depth, 'polygon', face, COLORS['highlight'], normal))
+                    centripetal_drawables.append((avg_depth, 'polygon', face, COLORS['highlight'], normal, c_alpha))
                 for face, depth, normal in cone_faces:
-                    centripetal_drawables.append((avg_depth, 'polygon', face, COLORS['highlight'], normal))
+                    centripetal_drawables.append((avg_depth, 'polygon', face, COLORS['highlight'], normal, c_alpha))
     
     return tangential_drawables, centripetal_drawables
