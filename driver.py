@@ -33,13 +33,9 @@ from physics import (
 )
 
 # Drawing
-from draw_2d import (
-    draw_cube_edges, draw_cube_vertices,
-    draw_velocity_vectors_at_vertices, draw_formula,
-    draw_face_normals,
-)
 from draw_3d import (
     draw_3d_cylinder, draw_3d_cone, draw_3d_velocity_vectors,
+    draw_3d_face_normals,
     apply_vector_shading_to_face,
 )
 
@@ -67,7 +63,6 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
     # Visual rotation settings - controls how fast the cube appears to spin visually
     visual_rotation_enabled = CONFIG.get('visual_rotation', {}).get('enabled', True)
     visual_multiplier = CONFIG.get('visual_rotation', {}).get('multiplier', 1.0)
-    max_visual_omega_scale = CONFIG.get('visual_rotation', {}).get('max_visual_omega_scale', 3.0)
 
     # Physics accumulator for fixed-timestep integration
     physics_accumulator = 0.0
@@ -217,22 +212,25 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                     omega_z += key_omega_z * frame_dt
 
                 # Apply damping at fixed timestep (compensate for increased damping frequency)
-                effective_damping = apply_drag_impulse_damping(omega_x, omega_y, omega_z)
-                # Since we're applying damping more frequently at higher FPS,
-                # we need to reduce its per-step effect to maintain consistent behavior
-                current_mag = math.sqrt(omega_x**2 + omega_y**2 + omega_z**2)
-                if current_mag > 0:
-                    max_speed = CONFIG['angular_velocity']['max_speed']
-                    speed_factor = min(current_mag / max_speed, 1.0)
-                    base_damping = CONFIG['angular_velocity']['damping']
-                    adaptive_damping = base_damping - (speed_factor * 0.01)
-                    # Scale damping to fixed timestep: if real_dt < fixed_physics_dt, less damping per step
-                    damping_scale = min(real_dt / fixed_physics_dt, 1.0)
-                    # Interpolate between no damping and full damping based on timestep ratio
-                    step_damping = 1.0 - (1.0 - adaptive_damping) * damping_scale
-                    omega_x *= step_damping
-                    omega_y *= step_damping
-                    omega_z *= step_damping
+                # Skip damping when keyboard controls are actively being used
+                keyboard_active = key_omega_x != 0 or key_omega_y != 0 or key_omega_z != 0
+                if not keyboard_active:
+                    effective_damping = apply_drag_impulse_damping(omega_x, omega_y, omega_z)
+                    # Since we're applying damping more frequently at higher FPS,
+                    # we need to reduce its per-step effect to maintain consistent behavior
+                    current_mag = math.sqrt(omega_x**2 + omega_y**2 + omega_z**2)
+                    if current_mag > 0:
+                        max_speed = CONFIG['angular_velocity']['max_speed']
+                        speed_factor = min(current_mag / max_speed, 1.0)
+                        base_damping = CONFIG['angular_velocity']['damping']
+                        adaptive_damping = base_damping - (speed_factor * 0.01)
+                        # Scale damping to fixed timestep: if real_dt < fixed_physics_dt, less damping per step
+                        damping_scale = min(real_dt / fixed_physics_dt, 1.0)
+                        # Interpolate between no damping and full damping based on timestep ratio
+                        step_damping = 1.0 - (1.0 - adaptive_damping) * damping_scale
+                        omega_x *= step_damping
+                        omega_y *= step_damping
+                        omega_z *= step_damping
 
                 physics_accumulator -= fixed_physics_dt
 
@@ -243,15 +241,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         total_omega_current = math.sqrt(omega_x**2 + omega_y**2 + omega_z**2)
         max_speed = CONFIG['angular_velocity']['max_speed'] if CONFIG['angular_velocity']['max_speed'] > 0 else 180.0
 
-        # Visual scale factor: apply multiplier first, then high-speed scaling.
-        # At low omega: visual_scale = multiplier (user-controlled speed).
-        # At high omega (>max_speed): additionally scale down to prevent blur.
-        if visual_rotation_enabled and total_omega_current > max_speed:
-            # Smoothly scale down visual rotation as omega exceeds max_speed
-            high_speed_factor = 1.0 / (1.0 + (total_omega_current - max_speed) / max_speed * (max_visual_omega_scale - 1.0))
-            visual_scale = visual_multiplier * high_speed_factor
-        elif visual_rotation_enabled:
-            # Apply user's direct multiplier at normal speeds
+        # Visual scale factor: apply user's direct multiplier
+        if visual_rotation_enabled:
             visual_scale = visual_multiplier
         else:
             visual_scale = 1.0
@@ -445,19 +436,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 vector_drawables.extend(tangential_drawables)
                 vector_drawables.extend(centripetal_drawables)
             else:
-                if show_tangential_vectors and tangential_mode == 'simple':
-                    draw_velocity_vectors_at_vertices(
-                        world_verts, total_omega, screen, omega_x, omega_y, omega_z,
-                        max_vectors=max_display_vectors, show_tangential=True, show_centripetal=False,
-                        vertex_mask=vertex_mask
-                    )
-                if show_centripetal_vectors and centripetal_mode == 'simple':
-                    draw_velocity_vectors_at_vertices(
-                        world_verts, total_omega, screen, omega_x, omega_y, omega_z,
-                        max_vectors=max_display_vectors, show_tangential=False, show_centripetal=True,
-                        vertex_mask=vertex_mask
-                    )
-                if show_tangential_vectors and tangential_mode == 'enhanced':
+                # Simple mode removed with legacy 2D code - use enhanced mode
+                if show_tangential_vectors:
                     tang_drawables, _ = draw_3d_velocity_vectors(
                         world_verts, total_omega, screen, omega_x, omega_y, omega_z,
                         show_tangential=True, show_centripetal=False,
@@ -465,7 +445,7 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                         vertex_mask=vertex_mask
                     )
                     vector_drawables.extend(tang_drawables)
-                if show_centripetal_vectors and centripetal_mode == 'enhanced':
+                if show_centripetal_vectors:
                     _, cent_drawables = draw_3d_velocity_vectors(
                         world_verts, total_omega, screen, omega_x, omega_y, omega_z,
                         show_tangential=False, show_centripetal=True,
@@ -497,6 +477,12 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         # In this coord system: higher Z = farther from camera, lower Z = closer to camera
         # So we sort reverse=True: highest Z (farthest) drawn first/bottom, lowest Z (closest) drawn last/top
         all_drawables = omega_drawables + edge_drawables + velocity_drawables + vertex_drawables
+        
+        # Add face normals to drawables if enabled (for depth sorting)
+        if show_face_normals:
+            normal_drawables = draw_3d_face_normals(rotated_verts, screen)
+            all_drawables.extend(normal_drawables)
+        
         all_drawables.sort(key=lambda d: d[0], reverse=True)
 
         # Draw all depth-sorted polygons, lines, and vertices with shading
@@ -522,9 +508,6 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 (cx, cy), radius = args
                 pygame.draw.circle(screen, color, (int(cx), int(cy)), int(radius))
 
-        # Draw face normals
-        if show_face_normals:
-            draw_face_normals(rotated_verts, screen)
 
         # UI Text - including toggle states and FPS
         toggle_info = font.render(f'[O] Omega: {"ON" if show_omega_vector else "OFF"}  [V] Tangential: {"ON" if show_tangential_vectors else "OFF"}  [C] Centripetal: {"ON" if show_centripetal_vectors else "OFF"}  [N] Normals: {"ON" if show_face_normals else "OFF"}  [1-8] Vertex: {"ON" if any(vertex_vector_enabled.values()) else "OFF"}  [WASDEQ] Rotate', True, (150, 150, 150))
@@ -532,24 +515,15 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         info1 = font.render(mag_text, True, (255, 255, 255))
 
         # Visual scale indicator and FPS display
-        if visual_rotation_enabled and total_omega > max_speed:
-            scale_text = f'Visual Scale: {visual_scale:.3f}x (at high speed)'
-        else:
-            scale_text = ''
-
         fps_text = f'FPS: {display_fps}'
         fps_render = small_font.render(fps_text, True, (180, 180, 180))
 
         screen.blit(info1, (15, 15))
         screen.blit(toggle_info, (15, 45))
-        if visual_rotation_enabled and total_omega > max_speed:
-            scale_render = small_font.render(f'Visual Scale: {visual_scale * visual_multiplier:.3f}x (at high speed)', True, (200, 200, 100))
-            screen.blit(scale_render, (15, 75))
-        elif visual_rotation_enabled and abs(visual_multiplier - 1.0) > 0.01:
+        if visual_rotation_enabled and abs(visual_multiplier - 1.0) > 0.01:
             scale_render = small_font.render(f'Visual Multiplier: {visual_multiplier:.2f}x', True, (200, 200, 100))
             screen.blit(scale_render, (15, 75))
         screen.blit(fps_render, (SCREEN_W - 100, 15))
-        draw_formula(screen)
 
         pygame.display.flip()
         if screen_callback:

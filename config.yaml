@@ -23,7 +23,6 @@ angular_velocity:
 visual_rotation:
   enabled: true                 # Enable visual rotation scaling system
   multiplier: 0.05              # Direct speed multiplier (0.1=very slow, 2.0=2x fast, etc.)
-  max_visual_omega_scale: 3.0   # At high omega, scale down to prevent blur (higher = slower)
 
 # ==================== PROJECTION CONFIGURATION ====================
 projection:

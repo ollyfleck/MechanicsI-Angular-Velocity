@@ -13,7 +13,7 @@ except ImportError:
 
 from config import COLORS, CONFIG, CUBE_SIZE
 from projection import project_3d_to_screen
-from math_utils import cross_product
+from math_utils import cross_product, rotate_around_axis
 
 
 # ==================== VECTOR SHADING ====================
@@ -480,6 +480,104 @@ def draw_3d_vector_omega_on_screen(screen, center_screen, direction_screen, tota
             by2 = shaft_end_screen[1] + py * sin2 * arrowhead_base_radius / shaft_radius
             
             pygame.draw.polygon(screen, color, [(int(cone_apex_screen[0]), int(cone_apex_screen[1])), (int(bx1), int(by1)), (int(bx2), int(by2))], 0)
+
+
+# ==================== 3D FACE NORMALS ====================
+
+def compute_face_normal_from_verts(face_indices, verts):
+    """Compute the outward normal of a face from its rotated vertex positions.
+    
+    Uses the cross product of two edge vectors to get the face normal.
+    """
+    p0 = np.array(verts[face_indices[0]])
+    p1 = np.array(verts[face_indices[1]])
+    p2 = np.array(verts[face_indices[2]])
+    
+    # Two edge vectors
+    e1 = p1 - p0
+    e2 = p2 - p0
+    
+    # Cross product gives the face normal
+    normal = np.cross(e1, e2)
+    norm = np.linalg.norm(normal)
+    if norm > 1e-10:
+        normal = normal / norm
+    return normal
+
+
+def draw_3d_face_normals(verts, screen):
+    """Draw normal vectors from the center of each cube face as 3D cylinder+cone objects.
+    
+    Draws normals on all 6 faces using CUBE_FACES_3D from geometry.
+    Normals follow the cube's rotation (computed from rotated vertex positions).
+    Returns list of drawables for depth sorting.
+    """
+    from geometry import CUBE_FACES_3D
+    
+    # Get normal length from unified vectors config
+    vectors_cfg = CONFIG.get('vectors', {})
+    face_cfg = vectors_cfg.get('face_normals', {})
+    normal_face_len = face_cfg.get('fixed_length', 3)
+    
+    # Get geometry config for normal arrows
+    normal_geom = face_cfg.get('geometry', {})
+    shaft_radius = normal_geom.get('shaft_radius', 1.5)
+    shaft_segments = normal_geom.get('shaft_segments', 6)
+    tip_length = normal_geom.get('tip_length', 1.5)
+    arrowhead_radius_ratio = normal_geom.get('arrowhead_radius_ratio', 5)
+    
+    drawables = []
+    
+    for face_info in CUBE_FACES_3D:
+        face_indices = face_info['indices']
+        color = face_info['color']
+        
+        # Compute face center from rotated vertices
+        face_verts_list = [verts[i] for i in face_indices]
+        center_pt = np.mean(face_verts_list, axis=0)
+        
+        # Compute normal from rotated face geometry (follows cube rotation)
+        face_normal = compute_face_normal_from_verts(face_indices, verts)
+        
+        # Compute tip point (extend normal from face center)
+        tip_3d = tuple(center_pt[i] + face_normal[i] * normal_face_len for i in range(3))
+        
+        # Check visibility
+        p_start = project_3d_to_screen(*center_pt)
+        p_tip = project_3d_to_screen(*tip_3d)
+        if p_start is None or p_tip is None:
+            continue
+        
+        # Compute shaft length (total minus fixed tip)
+        dx = tip_3d[0] - center_pt[0]
+        dy = tip_3d[1] - center_pt[1]
+        dz = tip_3d[2] - center_pt[2]
+        length = math.sqrt(dx*dx + dy*dy + dz*dz)
+        if length < tip_length:
+            continue
+        
+        shaft_len = max(length - tip_length, 0.01)
+        shaft_end_3d = (
+            center_pt[0] + dx/length * shaft_len,
+            center_pt[1] + dy/length * shaft_len,
+            center_pt[2] + dz/length * shaft_len
+        )
+        cone_apex_3d = tip_3d
+        arrowhead_base_r = shaft_radius * arrowhead_radius_ratio
+        
+        # Get cylinder and cone faces
+        cylinder_faces = draw_3d_cylinder(center_pt, shaft_end_3d, shaft_radius, shaft_segments, screen, color, depth_offset=0.01)
+        cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r, shaft_segments, screen, color, depth_offset=-0.01)
+        
+        # Average depth for sorting
+        avg_depth = (center_pt[2] + shaft_end_3d[2] + cone_apex_3d[2]) / 3.0
+        
+        for face, depth, normal in cylinder_faces:
+            drawables.append((avg_depth, 'polygon', face, color, normal))
+        for face, depth, normal in cone_faces:
+            drawables.append((avg_depth, 'polygon', face, color, normal))
+    
+    return drawables
 
 
 # ==================== 3D VELOCITY VECTORS ====================

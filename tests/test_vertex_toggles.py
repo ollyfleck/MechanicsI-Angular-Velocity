@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from draw_3d import draw_3d_velocity_vectors
-from draw_2d import draw_velocity_vectors_at_vertices
 from geometry import CUBE_VERTS
 
 
@@ -97,30 +96,6 @@ class TestVertexMask:
         assert isinstance(tang_drawables, list)
         assert isinstance(cent_drawables, list)
 
-    def test_draw_velocity_vectors_at_vertices_with_mask(self, sample_verts):
-        """Test 2D vector drawing with vertex mask."""
-        vertex_mask = {i: False for i in range(8)}
-        # Should not crash even with all disabled (screen=None skips drawing)
-        draw_velocity_vectors_at_vertices(
-            sample_verts, total_omega_mag=50.0, screen=None,
-            omega_x=0, omega_y=0, omega_z=100.0,
-            max_vectors=8,
-            show_tangential=True, show_centripetal=True,
-            vertex_mask=vertex_mask
-        )
-
-    def test_draw_velocity_vectors_at_vertices_with_none_mask(self, sample_verts):
-        """Test 2D vector drawing with None mask (default)."""
-        # With mask=None and show_tangential=True, it will try to draw.
-        # Just verify the mask=None case doesn't crash by using a mask that disables all.
-        vertex_mask = {i: False for i in range(8)}
-        draw_velocity_vectors_at_vertices(
-            sample_verts, total_omega_mag=50.0, screen=None,
-            omega_x=0, omega_y=0, omega_z=100.0,
-            max_vectors=8,
-            show_tangential=True, show_centripetal=True,
-            vertex_mask=vertex_mask
-        )
 
     def test_vertex_mask_single_vertex_enabled(self, sample_verts):
         """Test with only one vertex enabled at a time."""

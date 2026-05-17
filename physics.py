@@ -58,7 +58,7 @@ def apply_drag_impulse_damping(omega_x, omega_y, omega_z):
 
 def clamp_angular_velocity(omega_x, omega_y, omega_z):
     """Clamp angular velocity to maximum allowed magnitude."""
-    max_mag = CONFIG['angular_velocity']['max_speed'] * 1.5
+    max_mag = CONFIG['angular_velocity']['max_speed']
     
     current_mag = math.sqrt(omega_x**2 + omega_y**2 + omega_z**2)
     
