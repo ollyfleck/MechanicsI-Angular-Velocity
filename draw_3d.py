@@ -545,10 +545,13 @@ def draw_3d_face_normals(verts, screen):
     """
     from geometry import CUBE_FACES_3D
     
-    # Get normal length from unified vectors config
+    # Get normal length and colors from unified vectors config
     vectors_cfg = CONFIG.get('vectors', {})
     face_cfg = vectors_cfg.get('face_normals', {})
     normal_face_len = face_cfg.get('fixed_length', 3)
+    
+    # Get face normals color from config (no secondary color for face normals)
+    face_color = tuple(face_cfg.get('color', [200, 200, 255]))
     
     # Get geometry config for normal arrows
     normal_geom = face_cfg.get('geometry', {})
@@ -561,7 +564,8 @@ def draw_3d_face_normals(verts, screen):
     
     for face_info in CUBE_FACES_3D:
         face_indices = face_info['indices']
-        color = face_info['color']
+        # Face normals use a single color (no secondary)
+        color = face_color
         
         # Compute face center from rotated vertices
         face_verts_list = [verts[i] for i in face_indices]
@@ -632,6 +636,12 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
     tang_cfg = vectors_cfg.get('tangential_velocity', {})
     cent_cfg = vectors_cfg.get('centripetal_acceleration', {})
     
+    # Get per-vector colors from config (fallback to legacy COLORS dict)
+    tang_color = tuple(tang_cfg.get('color', CONFIG['colors'].get('velocity', [140, 190, 255])))
+    tang_color_secondary = tuple(tang_cfg.get('color_secondary', [100, 255, 200]))
+    cent_color = tuple(cent_cfg.get('color', CONFIG['colors'].get('highlight', [255, 220, 180])))
+    cent_color_secondary = tuple(cent_cfg.get('color_secondary', [255, 100, 100]))
+    
     tang_scale = tang_cfg.get('scale_factor', 0.2)
     tang_min_length = tang_cfg.get('min_length', 0)
     tang_clamp_max = tang_cfg.get('clamp_max', 25)
@@ -673,6 +683,20 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
             display_length = speed * tang_scale
             display_length = min(display_length, tang_clamp_max)
             display_length = max(display_length, tang_min_length)
+            
+            # Compute blend factor based on display length ratio
+            # Blending starts at tip_length (100% opacity) and ends at clamp_max
+            t_tip_length = tang_geom.get('tip_length', 1.5)
+            if tang_clamp_max > t_tip_length:
+                tang_blend = (display_length - t_tip_length) / (tang_clamp_max - t_tip_length)
+            else:
+                tang_blend = 0.0
+            tang_blend = max(0.0, min(1.0, tang_blend))
+            tang_color_final = (
+                int(tang_color[0] * (1 - tang_blend) + tang_color_secondary[0] * tang_blend),
+                int(tang_color[1] * (1 - tang_blend) + tang_color_secondary[1] * tang_blend),
+                int(tang_color[2] * (1 - tang_blend) + tang_color_secondary[2] * tang_blend),
+            )
             
             # Draw even when below tip length - alpha handles visibility
             t_tip_length = tang_geom.get('tip_length', 1.5)
@@ -733,16 +757,16 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
                 avg_depth = (start_cam[2] + shaft_end_3d[2] + cone_apex_3d[2]) / 3.0
                 
                 # Get cylinder and cone faces (use camera-rotated coordinates)
-                cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, t_shaft_radius, t_shaft_segments, screen, COLORS['velocity'], depth_offset=0.01)
-                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r, t_shaft_segments, screen, COLORS['velocity'], depth_offset=-0.01)
+                cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, t_shaft_radius, t_shaft_segments, screen, tang_color_final, depth_offset=0.01)
+                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r, t_shaft_segments, screen, tang_color_final, depth_offset=-0.01)
                 
                 # Compute alpha based on display length vs tip length
                 t_alpha = compute_vector_alpha(display_length, t_tip_length)
                 
                 for face, depth, normal in cylinder_faces:
-                    tangential_drawables.append((avg_depth, 'polygon', face, COLORS['velocity'], normal, t_alpha))
+                    tangential_drawables.append((avg_depth, 'polygon', face, tang_color_final, normal, t_alpha))
                 for face, depth, normal in cone_faces:
-                    tangential_drawables.append((avg_depth, 'polygon', face, COLORS['velocity'], normal, t_alpha))
+                    tangential_drawables.append((avg_depth, 'polygon', face, tang_color_final, normal, t_alpha))
         
         # Draw centripetal acceleration if enabled
         if show_centripetal:
@@ -753,6 +777,20 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
             display_length = a_mag * cent_scale
             display_length = min(display_length, cent_clamp_max)
             display_length = max(display_length, cent_min_length)
+            
+            # Compute blend factor based on display length ratio
+            # Blending starts at tip_length (100% opacity) and ends at clamp_max
+            c_tip_length = cent_geom.get('tip_length', 2.0)
+            if cent_clamp_max > c_tip_length:
+                cent_blend = (display_length - c_tip_length) / (cent_clamp_max - c_tip_length)
+            else:
+                cent_blend = 0.0
+            cent_blend = max(0.0, min(1.0, cent_blend))
+            cent_color_final = (
+                int(cent_color[0] * (1 - cent_blend) + cent_color_secondary[0] * cent_blend),
+                int(cent_color[1] * (1 - cent_blend) + cent_color_secondary[1] * cent_blend),
+                int(cent_color[2] * (1 - cent_blend) + cent_color_secondary[2] * cent_blend),
+            )
             
             # Draw even when below tip length - alpha handles visibility
             c_tip_length = cent_geom.get('tip_length', 2.0)
@@ -808,15 +846,15 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
                 avg_depth = (start_cam[2] + shaft_end_3d[2] + cone_apex_3d[2]) / 3.0
                 
                 # Get cylinder and cone faces (use camera-rotated coordinates)
-                cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, c_shaft_radius, c_shaft_segments, screen, COLORS['highlight'], depth_offset=0.01)
-                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r_c, c_shaft_segments, screen, COLORS['highlight'], depth_offset=-0.01)
+                cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, c_shaft_radius, c_shaft_segments, screen, cent_color_final, depth_offset=0.01)
+                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r_c, c_shaft_segments, screen, cent_color_final, depth_offset=-0.01)
                 
                 # Compute alpha based on display length vs tip length
                 c_alpha = compute_vector_alpha(display_length, c_tip_length)
                 
                 for face, depth, normal in cylinder_faces:
-                    centripetal_drawables.append((avg_depth, 'polygon', face, COLORS['highlight'], normal, c_alpha))
+                    centripetal_drawables.append((avg_depth, 'polygon', face, cent_color_final, normal, c_alpha))
                 for face, depth, normal in cone_faces:
-                    centripetal_drawables.append((avg_depth, 'polygon', face, COLORS['highlight'], normal, c_alpha))
+                    centripetal_drawables.append((avg_depth, 'polygon', face, cent_color_final, normal, c_alpha))
     
     return tangential_drawables, centripetal_drawables

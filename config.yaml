@@ -32,29 +32,9 @@ projection:
 # ==================== COLOR CONFIGURATION ====================
 colors:
   bg: [10, 15, 30]
-  cube_edges: [180, 200, 220]
-  omega: [255, 0, 0]
+  cube_edges: [255, 255, 255]
   velocity: [140, 190, 255]
-  axis: [120, 160, 200]
   highlight: [255, 220, 180]
-  text_main: [230, 240, 255]
-  text_sub: [180, 190, 210]
-
-# Edge colors for cube wireframe (RGB values)
-edge_colors:
-  - [255, 100, 100]   # Red
-  - [100, 255, 100]   # Green
-  - [100, 100, 255]   # Blue
-  - [255, 255, 100]   # Yellow
-  - [255, 100, 255]   # Magenta
-  - [100, 255, 255]   # Cyan
-  - [255, 150, 50]    # Orange
-  - [150, 50, 255]    # Purple
-  - [255, 200, 200]   # Pink
-  - [200, 255, 200]   # Light Green
-  - [200, 200, 255]   # Light Blue
-  - [255, 255, 255]   # White
-
 # ==================== MOUSE INPUT CONFIGURATION ====================
 mouse_drag_sensitivity:
   omega_x: 0.1    # Vertical drag → X-axis rotation sensitivity
@@ -82,6 +62,8 @@ vectors:
   omega:
     enabled: true
     rendering: "enhanced"
+    color: [80, 80, 255]
+    color_secondary: [255, 100, 100]
     scale_factor: 1
     min_length: 0
     clamp_max: 8
@@ -94,6 +76,8 @@ vectors:
   tangential_velocity:
     enabled: true
     rendering: "enhanced"
+    color: [140, 190, 255]
+    color_secondary: [100, 255, 100]
     scale_factor: 0.1
     min_length: 0
     clamp_max: 8
@@ -106,7 +90,9 @@ vectors:
   centripetal_acceleration:
     enabled: true
     rendering: "enhanced"
-    scale_factor: 0.05
+    color: [255, 255, 80]
+    color_secondary: [255, 100, 80]
+    scale_factor: 0.02
     min_length: 0
     clamp_max: 4
     geometry:
@@ -118,6 +104,7 @@ vectors:
   face_normals:
     enabled: true
     rendering: "simple"
+    color: [200, 200, 255]
     fixed_length: 3
 
 # Global shading settings for enhanced-mode vectors

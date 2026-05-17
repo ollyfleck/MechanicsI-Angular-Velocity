@@ -23,18 +23,9 @@ FRAME_RATE = CONFIG['physics'].get('frame_rate', 60)
 COLORS = {
     'bg': tuple(CONFIG['colors']['bg']),
     'cube_edges': tuple(CONFIG['colors']['cube_edges']),
-    'omega': tuple(CONFIG['colors']['omega']),
     'velocity': tuple(CONFIG['colors']['velocity']),
-    'axis': tuple(CONFIG['colors']['axis']),
-    'text_main': tuple(CONFIG['colors']['text_main']),
-    'text_sub': tuple(CONFIG['colors']['text_sub']),
+    'highlight': tuple(CONFIG['colors'].get('highlight', [255, 220, 180])),
 }
-
-# Handle highlight color fallback if not in config
-if 'highlight' in CONFIG['colors']:
-    COLORS['highlight'] = tuple(CONFIG['colors']['highlight'])
-else:
-    COLORS['highlight'] = (255, 220, 180)
 
 # ==================== VECTOR CONFIGS ====================
 # Access: CONFIG['vectors'][vector_name] for vector settings

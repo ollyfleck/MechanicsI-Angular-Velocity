@@ -309,8 +309,13 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
             # Get omega config from unified 'vectors' section
             omega_vec_cfg = vectors_cfg.get('omega', {})
             omega_scale = omega_vec_cfg.get('scale_factor', 0.5)
+            
+            # Get omega colors from config (fallback to defaults)
+            omega_color = tuple(omega_vec_cfg.get('color', [255, 80, 80]))
+            omega_color_secondary = tuple(omega_vec_cfg.get('color_secondary', [255, 255, 100]))
+            omega_tip_length = omega_vec_cfg.get('geometry', {}).get('tip_length', 2.0)
+            omega_clamp_max = omega_vec_cfg.get('clamp_max', 8)
             omega_min_length = omega_vec_cfg.get('min_length', 0)
-            omega_clamp_max = omega_vec_cfg.get('clamp_max', 120)
 
             # Scale by omega magnitude, then clamp
             omega_display_length = total_omega * omega_scale
@@ -334,10 +339,17 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 omega_rot = rotate_around_axis(omega_rot, [0, 0, 1], -view_z_deg)
                 omega_rot = rotate_around_axis(omega_rot, [1, 0, 0], view_x_deg)
 
-                r = int(80 + mag_norm * 175)
-                g = int(80 + (1 - mag_norm) * 100)
-                b = int(255 - mag_norm * 150)
-                omega_color = (r, g, b)
+                # Blend between primary and secondary color based on display length ratio
+                # Blending starts at tip_length (100% opacity) and ends at clamp_max
+                if omega_clamp_max > omega_tip_length:
+                    omega_blend = (omega_display_length - omega_tip_length) / (omega_clamp_max - omega_tip_length)
+                else:
+                    omega_blend = 0.0
+                omega_blend = max(0.0, min(1.0, omega_blend))
+                r = int(omega_color[0] * (1 - omega_blend) + omega_color_secondary[0] * omega_blend)
+                g = int(omega_color[1] * (1 - omega_blend) + omega_color_secondary[1] * omega_blend)
+                b = int(omega_color[2] * (1 - omega_blend) + omega_color_secondary[2] * omega_blend)
+                omega_color_final = (min(255, r), min(255, g), min(255, b))
 
                 # Use draw_3d_vector_omega_drawables for alpha support
                 # Compute total_length for the drawables function
@@ -353,13 +365,13 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 shaft_end_3d = (omega_rot[0] * shaft_length, omega_rot[1] * shaft_length, omega_rot[2] * shaft_length)
                 cone_apex_3d = (omega_rot[0] * total_length, omega_rot[1] * total_length, omega_rot[2] * total_length)
 
-                cylinder_faces = draw_3d_cylinder(center_3d, shaft_end_3d, shaft_radius, shaft_segments, screen, omega_color, depth_offset=0.01)
+                cylinder_faces = draw_3d_cylinder(center_3d, shaft_end_3d, shaft_radius, shaft_segments, screen, omega_color_final, depth_offset=0.01)
                 for face, depth, normal in cylinder_faces:
-                    drawables.append((depth, 'polygon', face, omega_color, normal, alpha))
+                    drawables.append((depth, 'polygon', face, omega_color_final, normal, alpha))
 
-                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_radius, shaft_segments, screen, omega_color, depth_offset=-0.01)
+                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_radius, shaft_segments, screen, omega_color_final, depth_offset=-0.01)
                 for face, depth, normal in cone_faces:
-                    drawables.append((depth, 'polygon', face, omega_color, normal, alpha))
+                    drawables.append((depth, 'polygon', face, omega_color_final, normal, alpha))
                 
                 # Draw a red circle at the base of the omega vector's shaft
                 p_center_circle = project_3d_to_screen(*center_3d)
@@ -372,10 +384,17 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 omega_rot = rotate_around_axis(omega_rot, [0, 0, 1], -view_z_deg)
                 omega_rot = rotate_around_axis(omega_rot, [1, 0, 0], view_x_deg)
 
-                r = int(80 + mag_norm * 175)
-                g = int(80 + (1 - mag_norm) * 100)
-                b = int(255 - mag_norm * 150)
-                omega_color = (r, g, b)
+                # Blend between primary and secondary color based on display length ratio
+                # Blending starts at tip_length (100% opacity) and ends at clamp_max
+                if omega_clamp_max > omega_tip_length:
+                    omega_blend = (omega_display_length - omega_tip_length) / (omega_clamp_max - omega_tip_length)
+                else:
+                    omega_blend = 0.0
+                omega_blend = max(0.0, min(1.0, omega_blend))
+                r = int(omega_color[0] * (1 - omega_blend) + omega_color_secondary[0] * omega_blend)
+                g = int(omega_color[1] * (1 - omega_blend) + omega_color_secondary[1] * omega_blend)
+                b = int(omega_color[2] * (1 - omega_blend) + omega_color_secondary[2] * omega_blend)
+                omega_color_final = (min(255, r), min(255, g), min(255, b))
 
                 center_3d = (0.0, 0.0, 0.0)
                 total_length = omega_display_length
@@ -388,10 +407,10 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                     margin = 50
                     p_tip_clamped = (max(margin, min(SCREEN_W - margin, p_tip[0])), max(margin, min(SCREEN_H - margin, p_tip[1])))
                     
-                    # Draw a red circle at the base of the omega vector's shaft
+                    # Draw a circle at the base of the omega vector's shaft
                     pygame.draw.circle(screen, (255, 0, 0), (int(p_center[0]), int(p_center[1])), int(shaft_radius))
                     
-                    pygame.draw.line(screen, omega_color, p_center, p_tip_clamped, 3)
+                    pygame.draw.line(screen, omega_color_final, p_center, p_tip_clamped, 3)
 
                     dx2 = p_tip_clamped[0] - p_center[0]
                     dy2 = p_tip_clamped[1] - p_center[1]
@@ -401,7 +420,7 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                     cone_radius = arrow_len * 0.5
                     base1 = (int(p_tip_clamped[0] + cone_radius * math.cos(perp_angle)), int(p_tip_clamped[1] + cone_radius * math.sin(perp_angle)))
                     base2 = (int(p_tip_clamped[0] - cone_radius * math.cos(perp_angle)), int(p_tip_clamped[1] - cone_radius * math.sin(perp_angle)))
-                    pygame.draw.polygon(screen, omega_color, [p_tip_clamped, base1, base2])
+                    pygame.draw.polygon(screen, omega_color_final, [p_tip_clamped, base1, base2])
 
         # Compute world-space vertices using quaternion-based rotation.
         # The quaternion accumulates fixed-frame rotations from omega, which is exactly the physical orientation.
@@ -484,7 +503,7 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         # Create edge drawable entries: (depth, 'line', (p1, p2), color)
         edge_drawables = []
         for (avg_z, p1, p2) in edge_faces:
-            edge_drawables.append((avg_z, 'line', (p1, p2), (255, 255, 255)))
+            edge_drawables.append((avg_z, 'line', (p1, p2), COLORS['cube_edges']))
 
         # Create vertex drawable entries: (depth, 'vertex', screen_pos, color)
         # Only draw vertex dots for enabled vertices
