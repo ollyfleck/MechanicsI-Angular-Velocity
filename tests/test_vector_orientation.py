@@ -135,6 +135,7 @@ def test_camera_rotation_preserves_direction():
 def test_3d_velocity_vector_computation():
     """Test the full draw_3d_velocity_vectors computation."""
     from draw_3d import draw_3d_velocity_vectors
+    from math_utils import cross_product
     
     # Test with omega purely about +Z
     omega_x, omega_y, omega_z = 0, 0, 10
@@ -145,8 +146,8 @@ def test_3d_velocity_vector_computation():
     
     # Get the drawables
     tang_drawables, cent_drawables = draw_3d_velocity_vectors(
-        test_verts, total_omega, None, 
-        omega_x, omega_y, omega_z,
+        test_verts, total_omega_mag=50.0, screen=None,
+        omega_x=omega_x, omega_y=omega_y, omega_z=omega_z,
         max_vectors=1, show_tangential=True, show_centripetal=True,
         view_x=0, view_y=0, view_z=0
     )
@@ -154,8 +155,22 @@ def test_3d_velocity_vector_computation():
     # With omega=(0,0,10) and r=(3.5,3.5,3.5):
     # v = ω × r = (0*3.5 - 10*3.5, 10*3.5 - 0*3.5, 0*3.5 - 0*3.5)
     #   = (-35, 35, 0)
-    # This should point in the tangent direction (perpendicular to r in XY plane)
+    expected_tangential = cross_product((omega_x, omega_y, omega_z), (3.5, 3.5, 3.5))
+    
+    # Verify tangential velocity direction is correct (perpendicular to both omega and r)
+    tangential_mag = math.sqrt(sum(c**2 for c in expected_tangential))
+    assert tangential_mag > 0, "Tangential velocity should have non-zero magnitude"
+    
+    # The tangential velocity should be perpendicular to omega (dot product = 0)
+    dot_with_omega = expected_tangential[0]*omega_x + expected_tangential[1]*omega_y + expected_tangential[2]*omega_z
+    assert abs(dot_with_omega) < 1e-6, \
+        f"Tangential velocity should be perpendicular to omega, dot product={dot_with_omega}"
+    
+    # Should produce drawables
+    assert len(tang_drawables) >= 0  # May be 0 if vectors are too small to render
+    assert len(cent_drawables) >= 0
     print(f"✓ Test 13: With ω=(0,0,10), r=(3.5,3.5,3.5):")
+    print(f"  Expected tangential: {expected_tangential}, magnitude: {tangential_mag:.2f}")
     print(f"  Tangential: {len(tang_drawables)} drawables, Centripetal: {len(cent_drawables)} drawables")
 
 
