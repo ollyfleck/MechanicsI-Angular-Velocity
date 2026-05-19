@@ -11,7 +11,7 @@ try:
 except ImportError:
     raise RuntimeError("pygame is required for drawing functions. Run: pip install pygame")
 
-from config import COLORS, CONFIG, CUBE_SIZE
+from config import COLORS, CONFIG, CUBE_SIZE, SCREEN_W, SCREEN_H
 from projection import project_3d_to_screen
 from math_utils import cross_product, rotate_around_axis
 
@@ -87,7 +87,7 @@ def apply_vector_shading_to_face(color, face_normal, depth):
 
 # ==================== 3D PRIMITIVE DRAWING ====================
 
-def draw_3d_cylinder(start, end, radius, segments, screen, color, depth_offset=0.0):
+def draw_3d_cylinder(start, end, radius, segments, screen, color, depth_offset=0.0, width=None, height=None):
     """Draw a 3D cylinder as filled polygons, depth-sorted.
     
     Draws a cylinder from start to end with given radius and segment count.
@@ -170,11 +170,13 @@ def draw_3d_cylinder(start, end, radius, segments, screen, color, depth_offset=0
         y2e = end[1] + v1y * r_end * cos2 + v2y * r_end * sin2
         z2e = end[2] + v1z * r_end * cos2 + v2z * r_end * sin2
         
-        # Project to screen
-        p1s = project_3d_to_screen(x1s, y1s, z1s)
-        p2s = project_3d_to_screen(x2s, y2s, z2s)
-        p1e = project_3d_to_screen(x1e, y1e, z1e)
-        p2e = project_3d_to_screen(x2e, y2e, z2e)
+        # Project to screen (use provided width/height or fallback to defaults)
+        w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+        h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+        p1s = project_3d_to_screen(x1s, y1s, z1s, w, h)
+        p2s = project_3d_to_screen(x2s, y2s, z2s, w, h)
+        p1e = project_3d_to_screen(x1e, y1e, z1e, w, h)
+        p2e = project_3d_to_screen(x2e, y2e, z2e, w, h)
         
         if any(p is None for p in [p1s, p2s, p1e, p2e]):
             continue
@@ -206,7 +208,7 @@ def draw_3d_cylinder(start, end, radius, segments, screen, color, depth_offset=0
     return faces
 
 
-def draw_3d_cone(apex, base_center, base_radius, segments, screen, color, depth_offset=0.0):
+def draw_3d_cone(apex, base_center, base_radius, segments, screen, color, depth_offset=0.0, width=None, height=None):
     """Draw a 3D cone as filled polygons, returns faces for depth sorting.
     
     Cone apex is the tip, base_center is the center of the circular base.
@@ -244,8 +246,10 @@ def draw_3d_cone(apex, base_center, base_radius, segments, screen, color, depth_
         return []
     v2x, v2y, v2z = v2x/mag2, v2y/mag2, v2z/mag2
     
-    # Project apex to screen
-    apex_screen = project_3d_to_screen(*apex)
+    # Project apex to screen (use provided width/height or fallback to defaults)
+    w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+    h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+    apex_screen = project_3d_to_screen(apex[0], apex[1], apex[2], w, h)
     if apex_screen is None:
         return []
     
@@ -276,8 +280,10 @@ def draw_3d_cone(apex, base_center, base_radius, segments, screen, color, depth_
         by2 = base_center[1] + v1y * corrected_base_radius * cos2 + v2y * corrected_base_radius * sin2
         bz2 = base_center[2] + v1z * corrected_base_radius * cos2 + v2z * corrected_base_radius * sin2
         
-        p1 = project_3d_to_screen(bx1, by1, bz1)
-        p2 = project_3d_to_screen(bx2, by2, bz2)
+        w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+        h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+        p1 = project_3d_to_screen(bx1, by1, bz1, w, h)
+        p2 = project_3d_to_screen(bx2, by2, bz2, w, h)
         
         if p1 is None or p2 is None:
             continue
@@ -311,7 +317,7 @@ def draw_3d_cone(apex, base_center, base_radius, segments, screen, color, depth_
 
 # ==================== 3D VECTOR RENDERING ====================
 
-def draw_3d_vector_omega_drawables(center, direction, magnitude, config, geom_config, max_speed, screen):
+def draw_3d_vector_omega_drawables(center, direction, magnitude, config, geom_config, max_speed, screen, width=None, height=None):
     """Create drawables for the omega vector with alpha support.
     
     Returns list of drawables as (depth, 'polygon', face, color, normal, alpha) tuples,
@@ -356,9 +362,10 @@ def draw_3d_vector_omega_drawables(center, direction, magnitude, config, geom_co
     # Compute alpha based on total_length vs tip_length
     alpha = compute_vector_alpha(total_length, tip_length)
     
-    # Get cylinder and cone faces
-    cylinder_faces = draw_3d_cylinder(center, shaft_end, shaft_radius, shaft_segments, screen, color, depth_offset=0.01)
-    cone_faces = draw_3d_cone(cone_apex, shaft_end, arrowhead_base_radius, shaft_segments, screen, color, depth_offset=-0.01)
+    w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+    h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+    cylinder_faces = draw_3d_cylinder(center, shaft_end, shaft_radius, shaft_segments, screen, color, depth_offset=0.01, width=w, height=h)
+    cone_faces = draw_3d_cone(cone_apex, shaft_end, arrowhead_base_radius, shaft_segments, screen, color, depth_offset=-0.01, width=w, height=h)
     
     drawables = []
     for face, depth, normal in cylinder_faces:
@@ -369,7 +376,7 @@ def draw_3d_vector_omega_drawables(center, direction, magnitude, config, geom_co
     return drawables, color
 
 
-def draw_3d_vector(screen, start_3d, direction_3d, length, color, geom_config, proj_multiplier_x=0.15, proj_multiplier_y=0.12):
+def draw_3d_vector(screen, start_3d, direction_3d, length, color, geom_config, proj_multiplier_x=0.15, proj_multiplier_y=0.12, width=None, height=None):
     """Draw a vector as a 3D cylinder with cone arrowhead, projecting through perspective.
     
     For tangential/centripetal vectors that start at cube vertices.
@@ -391,9 +398,10 @@ def draw_3d_vector(screen, start_3d, direction_3d, length, color, geom_config, p
         start_3d[2] + direction_3d[2] * length
     )
     
-    # Check if start or end is behind camera
-    p_start = project_3d_to_screen(*start_3d)
-    p_end = project_3d_to_screen(*end_3d)
+    w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+    h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+    p_start = project_3d_to_screen(start_3d[0], start_3d[1], start_3d[2], w, h)
+    p_end = project_3d_to_screen(end_3d[0], end_3d[1], end_3d[2], w, h)
     if p_start is None or p_end is None:
         return []
     
@@ -407,14 +415,15 @@ def draw_3d_vector(screen, start_3d, direction_3d, length, color, geom_config, p
         start_3d[2] + direction_3d[2] * shaft_length_3d
     )
     
-    # Get cylinder and cone faces
-    cylinder_faces = draw_3d_cylinder(start_3d, shaft_end_3d, shaft_radius, shaft_segments, screen, color, depth_offset=0.01)
+    w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+    h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+    cylinder_faces = draw_3d_cylinder(start_3d, shaft_end_3d, shaft_radius, shaft_segments, screen, color, depth_offset=0.01, width=w, height=h)
     cone_apex = (
         start_3d[0] + direction_3d[0] * length,
         start_3d[1] + direction_3d[1] * length,
         start_3d[2] + direction_3d[2] * length
     )
-    cone_faces = draw_3d_cone(cone_apex, shaft_end_3d, arrowhead_base_radius, shaft_segments, screen, color, depth_offset=-0.01)
+    cone_faces = draw_3d_cone(cone_apex, shaft_end_3d, arrowhead_base_radius, shaft_segments, screen, color, depth_offset=-0.01, width=w, height=h)
     
     return cylinder_faces + cone_faces
 
@@ -536,7 +545,7 @@ def compute_face_normal_from_verts(face_indices, verts):
     return normal
 
 
-def draw_3d_face_normals(verts, screen):
+def draw_3d_face_normals(verts, screen, width=None, height=None):
     """Draw normal vectors from the center of each cube face as 3D cylinder+cone objects.
     
     Draws normals on all 6 faces using CUBE_FACES_3D from geometry.
@@ -577,9 +586,10 @@ def draw_3d_face_normals(verts, screen):
         # Compute tip point (extend normal from face center)
         tip_3d = tuple(center_pt[i] + face_normal[i] * normal_face_len for i in range(3))
         
-        # Check visibility
-        p_start = project_3d_to_screen(*center_pt)
-        p_tip = project_3d_to_screen(*tip_3d)
+        w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+        h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+        p_start = project_3d_to_screen(center_pt[0], center_pt[1], center_pt[2], w, h)
+        p_tip = project_3d_to_screen(tip_3d[0], tip_3d[1], tip_3d[2], w, h)
         if p_start is None or p_tip is None:
             continue
         
@@ -600,9 +610,10 @@ def draw_3d_face_normals(verts, screen):
         cone_apex_3d = tip_3d
         arrowhead_base_r = shaft_radius * arrowhead_radius_ratio
         
-        # Get cylinder and cone faces
-        cylinder_faces = draw_3d_cylinder(center_pt, shaft_end_3d, shaft_radius, shaft_segments, screen, color, depth_offset=0.01)
-        cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r, shaft_segments, screen, color, depth_offset=-0.01)
+        w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+        h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+        cylinder_faces = draw_3d_cylinder(center_pt, shaft_end_3d, shaft_radius, shaft_segments, screen, color, depth_offset=0.01, width=w, height=h)
+        cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r, shaft_segments, screen, color, depth_offset=-0.01, width=w, height=h)
         
         # Average depth for sorting
         avg_depth = (center_pt[2] + shaft_end_3d[2] + cone_apex_3d[2]) / 3.0
@@ -620,7 +631,7 @@ def draw_3d_face_normals(verts, screen):
 
 # ==================== 3D VELOCITY VECTORS ====================
 
-def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=0, omega_z=0, max_vectors=3, show_tangential=True, show_centripetal=True, view_x=0, view_y=0, view_z=0, vertex_mask=None):
+def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=0, omega_z=0, max_vectors=3, show_tangential=True, show_centripetal=True, view_x=0, view_y=0, view_z=0, vertex_mask=None, width=None, height=None):
     """Draw tangential velocity vectors and centripetal acceleration vectors as 3D cylinder+cone objects.
     
     Returns two lists: (tangential_drawables, centripetal_drawables)
@@ -726,9 +737,10 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
                 start_cam = start_3d  # Already rotated in driver
                 end_cam = end_world  # Already rotated in driver
                 
-                # Check if visible (use original world-space depth)
-                p_start = project_3d_to_screen(*start_cam)
-                p_end = project_3d_to_screen(*end_cam)
+                w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+                h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+                p_start = project_3d_to_screen(start_cam[0], start_cam[1], start_cam[2], w, h)
+                p_end = project_3d_to_screen(end_cam[0], end_cam[1], end_cam[2], w, h)
                 if p_start is None or p_end is None:
                     continue
                 
@@ -756,9 +768,10 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
                 # Average depth for sorting (use camera-rotated z-depth)
                 avg_depth = (start_cam[2] + shaft_end_3d[2] + cone_apex_3d[2]) / 3.0
                 
-                # Get cylinder and cone faces (use camera-rotated coordinates)
-                cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, t_shaft_radius, t_shaft_segments, screen, tang_color_final, depth_offset=0.01)
-                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r, t_shaft_segments, screen, tang_color_final, depth_offset=-0.01)
+                w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+                h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+                cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, t_shaft_radius, t_shaft_segments, screen, tang_color_final, depth_offset=0.01, width=w, height=h)
+                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r, t_shaft_segments, screen, tang_color_final, depth_offset=-0.01, width=w, height=h)
                 
                 # Compute alpha based on display length vs tip length
                 t_alpha = compute_vector_alpha(display_length, t_tip_length)
@@ -819,9 +832,10 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
                 start_cam = start_3d  # Already rotated in driver
                 end_cam = end_world  # Already rotated in driver
                 
-                # Check if visible (use original world-space depth)
-                p_start = project_3d_to_screen(*start_cam)
-                p_end = project_3d_to_screen(*end_cam)
+                w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+                h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+                p_start = project_3d_to_screen(start_cam[0], start_cam[1], start_cam[2], w, h)
+                p_end = project_3d_to_screen(end_cam[0], end_cam[1], end_cam[2], w, h)
                 if p_start is None or p_end is None:
                     continue
                 
@@ -845,9 +859,10 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
                 # Average depth for sorting (use camera-rotated z-depth)
                 avg_depth = (start_cam[2] + shaft_end_3d[2] + cone_apex_3d[2]) / 3.0
                 
-                # Get cylinder and cone faces (use camera-rotated coordinates)
-                cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, c_shaft_radius, c_shaft_segments, screen, cent_color_final, depth_offset=0.01)
-                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r_c, c_shaft_segments, screen, cent_color_final, depth_offset=-0.01)
+                w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
+                h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
+                cylinder_faces = draw_3d_cylinder(start_cam, shaft_end_3d, c_shaft_radius, c_shaft_segments, screen, cent_color_final, depth_offset=0.01, width=w, height=h)
+                cone_faces = draw_3d_cone(cone_apex_3d, shaft_end_3d, arrowhead_base_r_c, c_shaft_segments, screen, cent_color_final, depth_offset=-0.01, width=w, height=h)
                 
                 # Compute alpha based on display length vs tip length
                 c_alpha = compute_vector_alpha(display_length, c_tip_length)

@@ -115,10 +115,38 @@ vector_shading:
   diffuse_max: 1.0
 
 # ==================== DISPLAY TOGGLES ====================
-show_face_normals: true
+# Starting state for vector display toggles (keys O, V, C, N).
+# All toggles start OFF by default.
+display_toggles:
+  show_omega_vector: true
+  show_tangential_vectors: true
+  show_centripetal_vectors: true
+  show_face_normals: true
 
 # ==================== SYNTHETIC TEST MODE CONFIGURATION ====================
 synthetic_test:
   enabled: false
   drag_delta_omega_x: 0.1
   drag_delta_omega_y: 0.08
+
+# ==================== VERTEX CONFIGURATION ====================
+# Per-vertex vector display starting state.
+# Each vertex (0-7) corresponds to a cube corner.
+# Keys 1-8 toggle vectors for each vertex in the UI.
+vertices:
+  vertex_0:
+    enabled: true   # Vertex at (-1, -1, -1) relative to cube center
+  vertex_1:
+    enabled: true   # Vertex at (1, -1, -1) relative to cube center
+  vertex_2:
+    enabled: true   # Vertex at (1, 1, -1) relative to cube center
+  vertex_3:
+    enabled: true   # Vertex at (-1, 1, -1) relative to cube center
+  vertex_4:
+    enabled: true   # Vertex at (-1, -1, 1) relative to cube center
+  vertex_5:
+    enabled: true   # Vertex at (1, -1, 1) relative to cube center
+  vertex_6:
+    enabled: true   # Vertex at (1, 1, 1) relative to cube center
+  vertex_7:
+    enabled: true   # Vertex at (-1, 1, 1) relative to cube center

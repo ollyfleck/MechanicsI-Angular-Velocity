@@ -51,7 +51,7 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
     """
     pygame.init()
 
-    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.RESIZABLE)
     pygame.display.set_caption('Angular Velocity Demo: v = ω × r')
 
     clock = pygame.time.Clock()
@@ -101,14 +101,22 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
     KEY_OMEGA_Y = keys_omega_sens.get('omega_y', 40.0)   # A/D → Y-axis rotation
     KEY_OMEGA_Z = keys_omega_sens.get('omega_z', 30.0)   # E/Q → Z-axis rotation
 
-    # Vector display toggles (all start OFF)
-    show_omega_vector = False
-    show_tangential_vectors = False
-    show_centripetal_vectors = False
-    show_face_normals = False
+    # Vector display toggle defaults - load from config
+    display_toggles = CONFIG.get('display_toggles', {})
+    show_omega_vector = display_toggles.get('show_omega_vector', False)
+    show_tangential_vectors = display_toggles.get('show_tangential_vectors', False)
+    show_centripetal_vectors = display_toggles.get('show_centripetal_vectors', False)
+    show_face_normals = display_toggles.get('show_face_normals', False)
 
-    # Per-vertex vector display toggles (keys 1-8, all start OFF)
-    vertex_vector_enabled = {i: False for i in range(8)}
+    # Per-vertex vector display toggles (keys 1-8) - load defaults from config
+    vertex_config = CONFIG.get('vertices', {})
+    vertex_vector_enabled = {}
+    for i in range(8):
+        vertex_key = f'vertex_{i}'
+        if vertex_key in vertex_config:
+            vertex_vector_enabled[i] = vertex_config[vertex_key].get('enabled', True)
+        else:
+            vertex_vector_enabled[i] = True  # Default to enabled if not configured
 
     while running:
         # Check duration
@@ -124,6 +132,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.VIDEORESIZE:
+                screen = pygame.display.get_surface()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_d:
                     print(f"DEBUG - ω: ({omega_x:.4f}, {omega_y:.4f}, {omega_z:.4f})")
@@ -201,9 +211,11 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
             # Accumulate real time and step physics at fixed intervals
             physics_accumulator += real_dt
 
-            # Cap accumulator to prevent spiral of death
-            max_step = 0.25  # Max physics steps per frame
-            while physics_accumulator >= fixed_physics_dt and physics_accumulator < max_step:
+            # Cap steps per frame to prevent spiral of death
+            max_physics_steps = 256
+            step_count = 0
+            while physics_accumulator >= fixed_physics_dt and step_count < max_physics_steps:
+                step_count += 1
                 frame_dt = fixed_physics_dt  # Use fixed timestep for physics stability
 
                 # Apply key-based angular acceleration (adds to existing omega each step)
@@ -287,7 +299,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         def get_overlay_surface(alpha):
             """Get or create an overlay surface for the given alpha level."""
             if alpha not in overlay_surfaces:
-                overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                curr_w, curr_h = screen.get_size()
+                overlay = pygame.Surface((curr_w, curr_h), pygame.SRCALPHA)
                 overlay.set_alpha(alpha)  # Set per-surface alpha for blending
                 overlay_surfaces[alpha] = overlay
             return overlay_surfaces[alpha]
@@ -374,7 +387,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                     drawables.append((depth, 'polygon', face, omega_color_final, normal, alpha))
                 
                 # Draw a red circle at the base of the omega vector's shaft
-                p_center_circle = project_3d_to_screen(*center_3d)
+                curr_w, curr_h = screen.get_size()
+                p_center_circle = project_3d_to_screen(*center_3d, curr_w, curr_h)
                 if p_center_circle is not None:
                     drawables.append((center_3d[2] + 0.1, 'circle', (p_center_circle, shaft_radius), (255, 0, 0)))
             # Also draw in simple mode even when below tip_length - alpha handles visibility
@@ -400,12 +414,14 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 total_length = omega_display_length
                 tip_3d = (omega_rot[0] * total_length, omega_rot[1] * total_length, omega_rot[2] * total_length)
 
-                p_center = project_3d_to_screen(*center_3d)
-                p_tip = project_3d_to_screen(*tip_3d)
+                curr_w, curr_h = screen.get_size()
+                p_center = project_3d_to_screen(*center_3d, curr_w, curr_h)
+                p_tip = project_3d_to_screen(*tip_3d, curr_w, curr_h)
 
                 if p_center is not None and p_tip is not None:
                     margin = 50
-                    p_tip_clamped = (max(margin, min(SCREEN_W - margin, p_tip[0])), max(margin, min(SCREEN_H - margin, p_tip[1])))
+                    curr_w, curr_h = screen.get_size()
+                    p_tip_clamped = (max(margin, min(curr_w - margin, p_tip[0])), max(margin, min(curr_h - margin, p_tip[1])))
                     
                     # Draw a circle at the base of the omega vector's shaft
                     pygame.draw.circle(screen, (255, 0, 0), (int(p_center[0]), int(p_center[1])), int(shaft_radius))
@@ -447,8 +463,9 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         # Get edge faces with depth for proper layering
         edge_faces = []
         for idx, (i, j) in enumerate(CUBE_EDGES):
-            p1_screen = project_3d_to_screen(*(rotated_verts[i]))
-            p2_screen = project_3d_to_screen(*(rotated_verts[j]))
+            curr_w, curr_h = screen.get_size()
+            p1_screen = project_3d_to_screen(*(rotated_verts[i]), curr_w, curr_h)
+            p2_screen = project_3d_to_screen(*(rotated_verts[j]), curr_w, curr_h)
             if p1_screen is not None and p2_screen is not None:
                 avg_z = (rotated_verts[i][2] + rotated_verts[j][2]) / 2.0
                 edge_faces.append((avg_z, p1_screen, p2_screen))
@@ -471,7 +488,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                     show_tangential=show_tangential_vectors, show_centripetal=show_centripetal_vectors,
                     view_x=view_x_deg, view_y=view_y_deg, view_z=view_z_deg,
                     max_vectors=max_display_vectors,
-                    vertex_mask=vertex_mask
+                    vertex_mask=vertex_mask,
+                    width=curr_w, height=curr_h
                 )
                 vector_drawables.extend(tangential_drawables)
                 vector_drawables.extend(centripetal_drawables)
@@ -482,7 +500,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                         world_verts, total_omega, screen, omega_x, omega_y, omega_z,
                         show_tangential=True, show_centripetal=False,
                         view_x=view_x_deg, view_y=view_y_deg, view_z=view_z_deg,
-                        vertex_mask=vertex_mask
+                        vertex_mask=vertex_mask,
+                        width=curr_w, height=curr_h
                     )
                     vector_drawables.extend(tang_drawables)
                 if show_centripetal_vectors:
@@ -490,7 +509,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                         world_verts, total_omega, screen, omega_x, omega_y, omega_z,
                         show_tangential=False, show_centripetal=True,
                         view_x=view_x_deg, view_y=view_y_deg, view_z=view_z_deg,
-                        vertex_mask=vertex_mask
+                        vertex_mask=vertex_mask,
+                        width=curr_w, height=curr_h
                     )
                     vector_drawables.extend(cent_drawables)
 
@@ -509,7 +529,8 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         # Only draw vertex dots for enabled vertices
         vertex_drawables = []
         for i, v in enumerate(rotated_verts):
-            p = project_3d_to_screen(*v)
+            curr_w, curr_h = screen.get_size()
+            p = project_3d_to_screen(*v, curr_w, curr_h)
             if p is not None and vertex_vector_enabled.get(i, False):
                 vertex_drawables.append((v[2], 'vertex', p, (255, 50, 50)))
 
@@ -520,7 +541,7 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         
         # Add face normals to drawables if enabled (for depth sorting)
         if show_face_normals:
-            normal_drawables = draw_3d_face_normals(rotated_verts, screen)
+            normal_drawables = draw_3d_face_normals(rotated_verts, screen, width=curr_w, height=curr_h)
             all_drawables.extend(normal_drawables)
         
         all_drawables.sort(key=lambda d: d[0], reverse=True)
@@ -576,7 +597,9 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         if visual_rotation_enabled and abs(visual_multiplier - 1.0) > 0.01:
             scale_render = small_font.render(f'Visual Multiplier: {visual_multiplier:.2f}x', True, (200, 200, 100))
             screen.blit(scale_render, (15, 75))
-        screen.blit(fps_render, (SCREEN_W - 100, 15))
+        
+        curr_w, curr_h = screen.get_size()
+        screen.blit(fps_render, (curr_w - 100, 15))
 
         pygame.display.flip()
         if screen_callback:
