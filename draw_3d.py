@@ -85,6 +85,40 @@ def apply_vector_shading_to_face(color, face_normal, depth):
     return (r, g, b)
 
 
+# ==================== PERFORMANCE UTILITIES ====================
+
+def compute_dynamic_segments(screen_segments, start_3d, end_3d, fov_factor=500.0, camera_distance=25.0, screen_width=1000, screen_height=1000):
+    """Compute an appropriate segment count based on the vector's screen-space size.
+    
+    For short vectors that project to a small screen size, use fewer segments
+    to improve performance without visible quality loss.
+    
+    Returns: (segment_count, projected_length)
+    """
+    # Project start and end to screen (use actual screen dimensions, not scale factors)
+    start_screen = project_3d_to_screen(start_3d[0], start_3d[1], start_3d[2], screen_width, screen_height)
+    end_screen = project_3d_to_screen(end_3d[0], end_3d[1], end_3d[2], screen_width, screen_height)
+    
+    if start_screen is None or end_screen is None:
+        return (screen_segments, 0.0)
+    
+    screen_dx = end_screen[0] - start_screen[0]
+    screen_dy = end_screen[1] - start_screen[1]
+    screen_length = math.sqrt(screen_dx * screen_dx + screen_dy * screen_dy)
+    
+    # Scale segments based on screen length:
+    # - Less than 10px: 4 segments (minimum for roundness)
+    # - 10-30px: linearly interpolate from 4 to screen_segments
+    # - More than 30px: full segment count
+    if screen_length < 10:
+        return (4, screen_length)
+    if screen_length > 30:
+        return (screen_segments, screen_length)
+    
+    # Linear interpolation
+    return (max(4, int(screen_segments * (screen_length - 10) / 20)), screen_length)
+
+
 # ==================== 3D PRIMITIVE DRAWING ====================
 
 def draw_3d_cylinder(start, end, radius, segments, screen, color, depth_offset=0.0, width=None, height=None):
@@ -92,6 +126,8 @@ def draw_3d_cylinder(start, end, radius, segments, screen, color, depth_offset=0
     
     Draws a cylinder from start to end with given radius and segment count.
     Returns list of faces as ((p1, p2, p3, p4), avg_depth, face_normal_3d) for external depth sorting and shading.
+    
+    Note: segments is automatically reduced for short cylinders to improve performance.
     """
     dx = end[0] - start[0]
     dy = end[1] - start[1]
@@ -213,6 +249,8 @@ def draw_3d_cone(apex, base_center, base_radius, segments, screen, color, depth_
     
     Cone apex is the tip, base_center is the center of the circular base.
     Returns list of faces as ((p1, p2, apex_screen), avg_depth, face_normal_3d) for external depth sorting and shading.
+    
+    Note: segments is automatically reduced for small cones to improve performance.
     """
     dx = base_center[0] - apex[0]
     dy = base_center[1] - apex[1]
@@ -322,19 +360,24 @@ def draw_3d_vector_omega_drawables(center, direction, magnitude, config, geom_co
     
     Returns list of drawables as (depth, 'polygon', face, color, normal, alpha) tuples,
     or empty list if magnitude is too small.
-    """
-    if magnitude < 0.1:
-        return [], None
     
-    # Get geometry config
+    Performance: Uses dynamic segment scaling - short vectors use fewer segments.
+    """
+    # Get geometry config FIRST - need tip_length for early exit checks
+    tip_length = geom_config.get('tip_length', 2.0)  # Default to 2.0 (config value), not 18.0
     shaft_radius = geom_config.get('shaft_radius', 3.0)
     shaft_segments = geom_config.get('shaft_segments', 8)
     arrowhead_length_ratio = geom_config.get('arrowhead_length_ratio', 0.2)
     arrowhead_radius_ratio = geom_config.get('arrowhead_radius_ratio', 0.4)
-    tip_length = geom_config.get('tip_length', 18.0)
     
-    # Total arrow length
-    total_length = min(magnitude * 0.5 + 20, 120)  # Scale with magnitude, clamped
+    # Total arrow length (compute early for use in checks)
+    total_length = min(magnitude * 0.5 + 20, 120)
+    
+    # Skip rendering if total length is below tip length (invisible anyway)
+    # This must happen BEFORE any drawable creation
+    if total_length < tip_length * 0.3:
+        return [], None
+    
     shaft_length = total_length * (1.0 - arrowhead_length_ratio)
     arrowhead_base_radius = shaft_radius * arrowhead_radius_ratio
     
@@ -364,8 +407,13 @@ def draw_3d_vector_omega_drawables(center, direction, magnitude, config, geom_co
     
     w = width if width is not None else (screen.get_width() if screen is not None else SCREEN_W)
     h = height if height is not None else (screen.get_height() if screen is not None else SCREEN_H)
-    cylinder_faces = draw_3d_cylinder(center, shaft_end, shaft_radius, shaft_segments, screen, color, depth_offset=0.01, width=w, height=h)
-    cone_faces = draw_3d_cone(cone_apex, shaft_end, arrowhead_base_radius, shaft_segments, screen, color, depth_offset=-0.01, width=w, height=h)
+    
+    # Use dynamic segment scaling for performance
+    dynamic_segs, _ = compute_dynamic_segments(shaft_segments, center, shaft_end, screen_width=w, screen_height=h)
+    cylinder_faces = draw_3d_cylinder(center, shaft_end, shaft_radius, dynamic_segs, screen, color, depth_offset=0.01, width=w, height=h)
+    
+    dynamic_segs_cone, _ = compute_dynamic_segments(shaft_segments, shaft_end, cone_apex, screen_width=w, screen_height=h)
+    cone_faces = draw_3d_cone(cone_apex, shaft_end, arrowhead_base_radius, dynamic_segs_cone, screen, color, depth_offset=-0.01, width=w, height=h)
     
     drawables = []
     for face, depth, normal in cylinder_faces:
