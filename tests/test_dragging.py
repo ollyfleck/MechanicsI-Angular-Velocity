@@ -2,6 +2,7 @@ import pygame
 import os
 import sys
 import pytest
+from ctypes import windll, wintypes, WINFUNCTYPE
 
 # Ensure we can import from project root
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,13 +28,78 @@ class DragTestState:  # Renamed to avoid pytest collection warning
         self.drag_ended = False
         self.first_screenshot_taken = False
         self.second_screenshot_taken = False
+        self.frame_count = 0
+
+
+def maximize_window():
+    """Maximize the pygame window by finding it via title and posting WM_SYSCOMMAND SC_MAXIMIZE."""
+    try:
+        user32 = windll.user32
+
+        ENUM_WINDOWS_PROC = WINFUNCTYPE(
+            wintypes.BOOL,
+            wintypes.HWND,
+            wintypes.LPARAM
+        )
+
+        found = [False]
+
+        def enum_proc(hwnd, lparam):
+            try:
+                length = int(user32.GetWindowTextLengthW(hwnd)) + 1
+                buf = (wintypes.WCHAR * length)()
+                user32.GetWindowTextW(hwnd, buf, length)
+                caption = str(buf.value) if hasattr(buf, 'value') else ''
+            except Exception:
+                return True
+
+            if 'Angular Velocity Demo' in caption:
+                WM_SYSCOMMAND = 0x0112
+                SC_MAXIMIZE = 0xF030
+                user32.PostMessageW(hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0)
+                found[0] = True
+                return False
+
+            return True
+
+        callback = ENUM_WINDOWS_PROC(enum_proc)
+        
+        old_cb = getattr(user32, '_pygame_drag_test_callback', None)
+        user32._pygame_drag_test_callback = callback
+        
+        user32.EnumWindows(callback, None)
+        
+        if old_cb is not None:
+            user32._pygame_drag_test_callback = old_cb
+        else:
+            delattr(user32, '_pygame_drag_test_callback')
+
+    except Exception as e:
+        print(f"[test_dragging] Window maximize failed (non-fatal): {e}")
+
 
 def test_cube_dragging():
     state = DragTestState()
+    
+    # Flag to track that we've already tried maximizing the window
+    _maximize_done = [False]
 
-    def screen_callback(screen_surface):
+    def screen_callback(screen_surface, fps=0.0, omega=(0.0, 0.0, 0.0)):
         current_time = pygame.time.get_ticks()
-        
+
+        # Try to maximize on first frame (only once) — window must exist by then
+        if not _maximize_done[0]:
+            try:
+                maximize_window()
+            except Exception:
+                pass
+            _maximize_done[0] = True
+
+        # Print FPS and angular velocity every 10 frames
+        state.frame_count += 1
+        if state.frame_count % 10 == 0:
+            print(f"[Frame {state.frame_count}] FPS={fps:.1f}, ω=({omega[0]:.2f}, {omega[1]:.2f}, {omega[2]:.2f})")
+
         # Screenshot 1: At the very beginning (on first call)
         if not state.first_screenshot_taken:
             path = os.path.join(OUTPUT_DIR, "screenshot_start.png")
@@ -60,7 +126,6 @@ def test_cube_dragging():
             state.drag_started = True
 
         # 2. Dragging (from 100ms to 600ms) - varying positions to simulate actual dragging
-        #    Must have buttons=(1,0,0) to indicate LMB is held
         if state.drag_started and not state.drag_ended and current_time_ms < 600:
             progress = (current_time_ms - 100) / 500.0
             drag_x = int(50 + progress * 150)

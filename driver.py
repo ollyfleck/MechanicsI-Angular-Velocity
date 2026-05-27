@@ -47,14 +47,13 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
     Runs the physics simulation loop.
     :param duration_seconds: If provided, stops simulation after this many seconds.
     :param event_injector: A callable that returns a list of pygame events to inject.
-    :param screen_callback: A callable that receives the screen surface.
+    :param screen_callback: A callable that receives (screen_surface, fps, omega_tuple).
     :return: (omega_x, omega_y, omega_z) final angular velocity state.
     """
     pygame.init()
 
     screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.RESIZABLE)
     pygame.display.set_caption('Angular Velocity Demo: v = ω × r')
-
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 28)
     small_font = pygame.font.Font(None, 24)
@@ -618,7 +617,7 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
 
         pygame.display.flip()
         if screen_callback:
-            screen_callback(pygame.display.get_surface())
+            screen_callback(pygame.display.get_surface(), display_fps, (omega_x, omega_y, omega_z))
 
     pygame.quit()
     return omega_x, omega_y, omega_z
