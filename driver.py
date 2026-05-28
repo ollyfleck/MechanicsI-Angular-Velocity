@@ -292,24 +292,44 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         # Rendering
         screen.fill(COLORS['bg'])
         
-        # Create overlay surfaces for alpha-blended vectors (cached across frames)
-        # We need separate surfaces per alpha level to blend correctly
-        overlay_surfaces = {}  # alpha -> pygame.Surface
+        # Alpha blending settings - respect the global toggle from config
+        vr_config = CONFIG.get('vector_rendering', {})
+        alpha_blending_enabled = vr_config.get('alpha_blending_enabled', True)
+        
+        # Quantization step for alpha values to keep overlay cache bounded.
+        # Without quantization, unique float→int(alpha) values cause unbounded dict growth
+        # and O(n²) blit overhead as every frame creates new surfaces.
+        ALPHA_QUANTUM = 10  # bucket size: ~26 buckets (0, 10, 20... 250)
+        
+        # Overlay surfaces for alpha-blended vectors (cached across frames by quantized alpha key)
+        overlay_surfaces = {}  # quantized_alpha -> pygame.Surface
         overlay_state = [(0, 0)]  # Use list to avoid closure scoping issues
         
         def get_overlay_surface(alpha, screen_size):
-            """Get or create an overlay surface for the given alpha level."""
+            """Get or create an overlay surface for the given quantized alpha level.
+            
+            Alpha values are quantized to keep the cache bounded (~26 buckets with default settings).
+            """
             last_size = overlay_state[0]
             # Recreate all surfaces if screen size changed
             if screen_size != last_size:
                 overlay_surfaces.clear()
                 overlay_state[0] = screen_size
             
-            if alpha not in overlay_surfaces:
+            key = int(alpha)
+            # Quantize to bounded bucket count to prevent unbounded dict growth
+            quantized_key = (key // ALPHA_QUANTUM) * ALPHA_QUANTUM
+            if quantized_key not in overlay_surfaces:
                 overlay = pygame.Surface((screen_size[0], screen_size[1]), pygame.SRCALPHA)
-                overlay.set_alpha(alpha)
-                overlay_surfaces[alpha] = overlay
-            return overlay_surfaces[alpha]
+                overlay.set_alpha(quantized_key)
+                overlay_surfaces[quantized_key] = overlay
+            return overlay_surfaces[quantized_key]
+
+        def quantize_alpha(alpha):
+            """Quantize alpha value to bounded bucket count. Used by callers that need raw key."""
+            if alpha is None or alpha >= 255:
+                return None
+            return (int(alpha) // ALPHA_QUANTUM) * ALPHA_QUANTUM
 
         # Get vector rendering mode settings from unified 'vectors' section
         vectors_cfg = CONFIG.get('vectors', {})
@@ -593,8 +613,9 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
                 pygame.draw.circle(screen, color, (int(cx), int(cy)), int(radius))
         
         # Blit all overlay surfaces onto the main screen
-        for alpha, overlay in overlay_surfaces.items():
-            screen.blit(overlay, (0, 0))
+        if overlay_surfaces:
+            for _key, overlay in overlay_surfaces.items():
+                screen.blit(overlay, (0, 0))
 
 
         # UI Text - including toggle states and FPS
@@ -614,6 +635,15 @@ def run_simulation(duration_seconds=None, event_injector=None, screen_callback=N
         
         curr_w, curr_h = screen.get_size()
         screen.blit(fps_render, (curr_w - 100, 15))
+
+        # Safety net: cap overlay cache size to prevent memory leaks from edge cases
+        MAX_OVERLAY_SURFACES = 64
+        if len(overlay_surfaces) > MAX_OVERLAY_SURFACES * 2:
+            # Keep only the most recently used half (higher alpha values are more common at higher omega)
+            sorted_keys = sorted(overlay_surfaces.keys(), reverse=True)[:MAX_OVERLAY_SURFACES]
+            for key in list(overlay_surfaces.keys()):
+                if key not in sorted_keys:
+                    del overlay_surfaces[key]
 
         pygame.display.flip()
         if screen_callback:

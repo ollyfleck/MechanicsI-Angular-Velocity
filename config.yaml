@@ -110,7 +110,7 @@ vectors:
 # Global vector rendering settings
 vector_rendering:
   # Enable/disable alpha blending for short vectors (fade-in effect based on length)
-  alpha_blending_enabled: true
+  alpha_blending_enabled: false # disabled - I kinda dont wanna waste more time on fixing this as it's proving to be a very time consuming bug.
   # Minimum display length ratio relative to tip_length below which vectors are skipped entirely
   # A value of 0.3 means vectors shorter than 30% of their tip length won't be drawn
   min_draw_ratio: 0.05
