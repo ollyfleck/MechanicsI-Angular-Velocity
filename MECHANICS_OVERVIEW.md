@@ -1,4 +1,5 @@
 ### DISCLAIMER: This report has been generated almost entirely by artificial intelligence, with only very minor corrections applied.
+https://github.com/ollyfleck/MechanicsI-Angular-Velocity
 
 # Angular Velocity Simulation — Mechanics Overview
 

@@ -1,6 +1,6 @@
 # MechanicsI-Angular-Velocity
 
-This application is a learning experience about agentic programming - 99% of the code in this repository has been written by various LLMs (and it shows) that I deployed locally on my own hardware. 
+This readme was written entirely by hand. This application is a learning experience about agentic programming - 99% of the code in this repository has been written by various LLMs (and it shows) that I deployed locally on my own hardware. 
 For the majority of the programming I used qwen3.6-35b-a3b due to me having a graphics card with a relatively low amount of VRAM. 
 I used Cline in VSCode for my agentic programming harness.
 
