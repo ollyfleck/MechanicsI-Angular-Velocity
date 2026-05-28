@@ -69,7 +69,7 @@ vectors:
     clamp_max: 8
     geometry:
       shaft_radius: 2
-      shaft_segments: 32
+      shaft_segments: 16
       tip_length: 2.0
       arrowhead_radius_ratio: 5
 
@@ -106,6 +106,14 @@ vectors:
     rendering: "simple"
     color: [200, 200, 255]
     fixed_length: 3
+
+# Global vector rendering settings
+vector_rendering:
+  # Enable/disable alpha blending for short vectors (fade-in effect based on length)
+  alpha_blending_enabled: true
+  # Minimum display length ratio relative to tip_length below which vectors are skipped entirely
+  # A value of 0.3 means vectors shorter than 30% of their tip length won't be drawn
+  min_draw_ratio: 0.05
 
 # Global shading settings for enhanced-mode vectors
 vector_shading:

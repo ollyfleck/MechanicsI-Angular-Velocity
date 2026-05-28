@@ -31,8 +31,14 @@ def compute_vector_alpha(magnitude, tip_length):
         tip_length: the tip/arrowhead length from config
     
     Returns:
-        Alpha value 0-255, or None if fully opaque (no alpha blending needed)
+        Alpha value 0-255, or None if fully opaque (no alpha blending needed).
+        Returns None when alpha blending is disabled globally.
     """
+    # Respect global alpha blending toggle
+    vr = CONFIG.get('vector_rendering', {})
+    if not vr.get('alpha_blending_enabled', True):
+        return None
+    
     if tip_length <= 0:
         return None
     if magnitude >= tip_length:
@@ -365,6 +371,10 @@ def draw_3d_vector_omega_drawables(center, direction, magnitude, config, geom_co
     """
     # Get geometry config FIRST - need tip_length for early exit checks
     tip_length = geom_config.get('tip_length', 2.0)  # Default to 2.0 (config value), not 18.0
+    
+    # Early-exit threshold from global config
+    vr = CONFIG.get('vector_rendering', {})
+    min_draw_ratio = vr.get('min_draw_ratio', 0.3)
     shaft_radius = geom_config.get('shaft_radius', 3.0)
     shaft_segments = geom_config.get('shaft_segments', 8)
     arrowhead_length_ratio = geom_config.get('arrowhead_length_ratio', 0.2)
@@ -373,9 +383,9 @@ def draw_3d_vector_omega_drawables(center, direction, magnitude, config, geom_co
     # Total arrow length (compute early for use in checks)
     total_length = min(magnitude * 0.5 + 20, 120)
     
-    # Skip rendering if total length is below tip length (invisible anyway)
+    # Skip rendering if total length is below configurable threshold (invisible anyway)
     # This must happen BEFORE any drawable creation
-    if total_length < tip_length * 0.3:
+    if total_length < tip_length * min_draw_ratio:
         return [], None
     
     shaft_length = total_length * (1.0 - arrowhead_length_ratio)
@@ -760,6 +770,12 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
             # Draw even when below tip length - alpha handles visibility
             t_tip_length = tang_geom.get('tip_length', 1.5)
             
+            # Early exit: skip rendering if display length is below configurable threshold (invisible anyway)
+            vr = CONFIG.get('vector_rendering', {})
+            min_draw_ratio = vr.get('min_draw_ratio', 0.3)
+            if display_length < t_tip_length * min_draw_ratio:
+                continue
+            
             if speed >= 0.01:
                 scaled_v = (tangential_v[0] / speed * display_length,
                             tangential_v[1] / speed * display_length,
@@ -855,6 +871,12 @@ def draw_3d_velocity_vectors(verts, total_omega_mag, screen, omega_x=0, omega_y=
             
             # Draw even when below tip length - alpha handles visibility
             c_tip_length = cent_geom.get('tip_length', 2.0)
+            
+            # Early exit: skip rendering if display length is below configurable threshold (invisible anyway)
+            vr = CONFIG.get('vector_rendering', {})
+            min_draw_ratio = vr.get('min_draw_ratio', 0.3)
+            if display_length < c_tip_length * min_draw_ratio:
+                continue
             
             if a_mag >= 0.01:
                 a_unit = np.array([c / a_mag for c in centripetal_a])
